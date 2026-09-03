@@ -77,6 +77,211 @@ class PimEyesSearcher:
         print(f"[PimEyes] Loaded {len(self._cookies)} cookies from {self._cookies_path.name}")
         return self._cookies
 
+    async def search(self, image_bytes: bytes) -> SearchResult:
+        """
+        Upload a face image to PimEyes and retrieve matching URLs.
+
+        Args:
+            image_bytes: Raw JPEG/PNG bytes of the face image
+
+        Returns:
+            SearchResult with matched URLs
+        """
+        try:
+            import httpx
+        except ImportError:
+            return SearchResult(
+                success=False,
+                error="httpx not installed. Run: pip install httpx",
+                provider="pimeyes",
+            )
+
+        cookies = self._load_cookies()
+        if not cookies:
+            return SearchResult(
+                success=False,
+                error="PimEyes cookies not configured. Add pimeyes_cookies.json.",
+                provider="pimeyes",
+            )
+
+        # Rotate landscape images to portrait (helps face detection)
+        image_bytes = self._ensure_upright(image_bytes)
+
+        timeout = httpx.Timeout(30.0, connect=10.0)
+        try:
+            async with httpx.AsyncClient(
+                timeout=timeout,
+                cookies=cookies,
+                headers=_HEADERS,
+                follow_redirects=True,
+            ) as client:
+                return await self._execute_search(client, image_bytes)
+        except httpx.TimeoutException as e:
+            return SearchResult(
+                success=False,
+                error=f"PimEyes request timed out: {e}",
+                provider="pimeyes",
+            )
+        except Exception as e:
+            return SearchResult(
+                success=False,
+                error=f"PimEyes search failed: {e}",
+                provider="pimeyes",
+            )
+
+    async def _execute_search(self, client, image_bytes: bytes) -> SearchResult:
+        """Run the full PimEyes search flow."""
+        # Step 1: Upload image
+        b64 = base64.b64encode(image_bytes).decode()
+        data_url = f"data:image/jpeg;base64,{b64}"
+
+        upload_resp = await client.post(
+            f"{_BASE_URL}/api/upload/file",
+            json={"image": data_url},
+        )
+        if upload_resp.status_code != 200:
+            return SearchResult(
+                success=False,
+                error=f"PimEyes upload failed: HTTP {upload_resp.status_code}",
+                provider="pimeyes",
+            )
+
+        upload_data = upload_resp.json()
+        faces = upload_data.get("faces", [])
+        if not faces:
+            return SearchResult(
+                success=False,
+                error="PimEyes detected no faces in the uploaded image",
+                provider="pimeyes",
+            )
+
+        face_ids = [f["id"] for f in faces]
+        print(f"[PimEyes] Detected {len(faces)} face(s): {face_ids}")
+
+        # Step 2: Start premium search
+        search_resp = await client.post(
+            f"{_BASE_URL}/api/search/new",
+            json={
+                "faces": face_ids,
+                "type": "PREMIUM_SEARCH",
+                "time": "any",
+                "safeSearch": False,
+                "deepSearch": False,
+                "groups": True,
+                "order": "default",
+            },
+        )
+        if search_resp.status_code != 200:
+            return SearchResult(
+                success=False,
+                error=f"PimEyes search start failed: HTTP {search_resp.status_code}",
+                provider="pimeyes",
+            )
+
+        search_data = search_resp.json()
+        search_hash = search_data.get("searchHash", "")
+        api_url = search_data.get("apiUrl", "")
+
+        if not search_hash or not api_url:
+            return SearchResult(
+                success=False,
+                error=f"PimEyes: missing searchHash or apiUrl in response: {search_data}",
+                provider="pimeyes",
+            )
+
+        print(f"[PimEyes] Search started. Hash: {search_hash[:12]}...")
+
+        # Step 3: Fetch results (with retry — async backend)
+        raw_results = await self._fetch_results(api_url, search_hash)
+        if not raw_results:
+            return SearchResult(
+                success=False,
+                error="PimEyes returned no results",
+                provider="pimeyes",
+            )
+
+        print(f"[PimEyes] Got {len(raw_results)} raw results. Resolving URLs...")
+
+        # Step 4: Resolve URLs and extract matches
+        matches = await self._build_matches(raw_results)
+
+        if not matches:
+            return SearchResult(
+                success=False,
+                error="PimEyes: all result URLs failed to resolve",
+                provider="pimeyes",
+            )
+
+        print(f"[PimEyes] Resolved {len(matches)} matches.")
+        return SearchResult(matches=matches[:30], success=True, provider="pimeyes")
+
+    async def _fetch_results(self, api_url: str, search_hash: str, limit: int = 50) -> list[dict]:
+        """
+        Fetch results from PimEyes backend with retry.
+        Ported from JARVIS identification/pimeyes.py _fetch_results().
+        """
+        try:
+            import httpx
+        except ImportError:
+            return []
+
+        all_results: list[dict] = []
+        max_retries = 5
+
+        async with httpx.AsyncClient(timeout=httpx.Timeout(20.0), follow_redirects=True) as client:
+            for attempt in range(max_retries):
+                if attempt > 0:
+                    wait = 1.0 * (1.5 ** (attempt - 1))  # 1s, 1.5s, 2.25s, 3.4s
+                    print(f"[PimEyes] Results not ready, retry {attempt} in {wait:.1f}s")
+                    await asyncio.sleep(wait)
+
+                resp = await client.post(
+                    api_url,
+                    json={"hash": search_hash, "offset": 0, "limit": limit},
+                    headers={"Content-Type": "application/json"},
+                )
+                if resp.status_code != 200:
+                    continue
+
+                data = resp.json()
+                results = data.get("results", [])
+                if results:
+                    all_results.extend(results)
+                    # Fetch additional pages
+                    offset = len(results)
+                    while data.get("isMoreResults", False) and len(all_results) < limit:
+                        await asyncio.sleep(0.2)
+                        page_resp = await client.post(
+                            api_url,
+                            json={"hash": search_hash, "offset": offset, "limit": 50},
+                            headers={"Content-Type": "application/json"},
+                        )
+                        if page_resp.status_code != 200:
+                            break
+                        data = page_resp.json()
+                        page_results = data.get("results", [])
+                        if not page_results:
+                            break
+                        all_results.extend(page_results)
+                        offset += len(page_results)
+                    break
+
+        return all_results
+
+    async def _build_matches(self, results: list[dict]) -> list[SearchMatch]:
+        """Build initial SearchMatch objects from raw results."""
+        matches: list[SearchMatch] = []
+        for r in results:
+            url = r.get("sourceUrl", "")
+            if url:
+                matches.append(SearchMatch(
+                    url=url,
+                    thumbnail_url=r.get("thumbnailUrl") or r.get("imageUrl"),
+                    similarity=float(r.get("quality", 0)) / 100.0,
+                    source="pimeyes",
+                ))
+        return matches
+
     @staticmethod
     def _ensure_upright(image_bytes: bytes) -> bytes:
         """Rotate landscape images to portrait for better face detection."""
