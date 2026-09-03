@@ -8,9 +8,23 @@ Strategy: PimEyes first (purpose-built for faces), reverse image search fallback
 """
 from __future__ import annotations
 
+import re
+from urllib.parse import urlparse
+
 from traceface.search.models import SearchMatch, SearchResult
 from traceface.search.pimeyes import PimEyesSearcher
 from traceface.search.reverse_search import ReverseImageSearcher
+
+# Social/public domains we prefer — more likely to have a real profile
+PREFERRED_DOMAINS = {
+    "instagram.com", "www.instagram.com",
+    "twitter.com", "x.com", "www.twitter.com",
+    "facebook.com", "www.facebook.com",
+    "linkedin.com", "www.linkedin.com",
+    "reddit.com", "www.reddit.com",
+    "tiktok.com", "www.tiktok.com",
+    "youtube.com", "www.youtube.com",
+}
 
 
 class SearchManager:
@@ -75,3 +89,42 @@ class SearchManager:
             error=" | ".join(errors) if errors else "No matches found across any search engine",
             provider="none",
         )
+
+    def prioritize_social(self, matches: list[SearchMatch]) -> list[SearchMatch]:
+        """
+        Re-rank matches to put preferred social/public domains first.
+
+        Args:
+            matches: Raw search results (already sorted by similarity)
+
+        Returns:
+            Re-ranked list with social domains first
+        """
+        preferred = []
+        other = []
+        for match in matches:
+            domain = urlparse(match.url).netloc.lower()
+            if domain in PREFERRED_DOMAINS:
+                preferred.append(match)
+            else:
+                other.append(match)
+        return preferred + other
+
+    def best_person_name(self, result: SearchResult) -> str | None:
+        """
+        Extract the most likely person name from search results using frequency analysis.
+        Ported from JARVIS search_manager.py best_name_from_results().
+        """
+        if not result.matches:
+            return None
+
+        name_counts: dict[str, int] = {}
+        for match in result.matches:
+            if match.person_name:
+                name = match.person_name.strip()
+                name_counts[name] = name_counts.get(name, 0) + 1
+
+        if not name_counts:
+            return None
+
+        return max(name_counts, key=name_counts.get)  # type: ignore[arg-type]
