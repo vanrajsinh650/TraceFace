@@ -239,3 +239,35 @@ class FaceDetector:
         except Exception as e:
             return DetectionResult(success=False, error=f"Failed to read file: {e}")
         return self.detect(image_bytes)
+
+
+# ---------------------------------------------------------------------------
+# Cosine similarity (from eye_of_web similarity_utils.py — MIT)
+# ---------------------------------------------------------------------------
+
+def cosine_similarity(vec1: list[float] | np.ndarray, vec2: list[float] | np.ndarray) -> float:
+    """
+    Compute cosine similarity between two face embeddings.
+
+    Adapted from: eye_of_web/src/lib/similarity_utils.py — calculate_similarity()
+    Original author: Mehmet Yüksel Şekeroğlu (MIT License)
+
+    Standard metric for ArcFace embeddings (trained with angular margin loss).
+
+    Returns:
+        float in [-1.0, 1.0]; higher = more similar.
+    """
+    v1 = np.array(vec1, dtype=np.float32)
+    v2 = np.array(vec2, dtype=np.float32)
+
+    if v1.shape != v2.shape:
+        raise ValueError(f"Embedding shapes differ: {v1.shape} vs {v2.shape}")
+
+    norm1 = np.linalg.norm(v1)
+    norm2 = np.linalg.norm(v2)
+
+    if norm1 < 1e-10 or norm2 < 1e-10:
+        return 0.0
+
+    similarity = float(np.dot(v1, v2) / (norm1 * norm2))
+    return float(np.clip(similarity, -1.0, 1.0))
