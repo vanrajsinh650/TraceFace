@@ -232,3 +232,97 @@ class BlockchainClient:
         if err or self._account is None:
             return None
         return self._account.address
+
+    def anchor(self, evidence_hash: str, metadata: dict) -> BlockchainAnchorResult:
+        """
+        Anchor an evidence hash on the blockchain.
+
+        Stores: storeEvidence(evidence_hash, json.dumps(metadata))
+
+        Args:
+            evidence_hash: SHA-256 hex digest of the canonical evidence JSON
+            metadata: Dict with non-sensitive metadata (score, url, timestamp, etc.)
+
+        Returns:
+            BlockchainAnchorResult with tx_hash, block_number, evidence_id
+        """
+        err = self._connect()
+        if err:
+            return BlockchainAnchorResult(
+                tx_hash="", block_number=0, evidence_id=0, gas_used=0,
+                success=False, error=err,
+            )
+
+        # Prefix hash with "0x" if not present, for clarity in metadata
+        hash_str = evidence_hash if evidence_hash.startswith("0x") else evidence_hash
+        metadata_json = json.dumps(metadata, sort_keys=True, separators=(",", ":"))
+
+        try:
+            from web3 import Web3
+
+            # Build transaction
+            nonce = self._w3.eth.get_transaction_count(self._account.address)
+            chain_id = self._w3.eth.chain_id
+
+            # Estimate gas
+            gas_estimate = self._contract.functions.storeEvidence(
+                hash_str, metadata_json
+            ).estimate_gas({"from": self._account.address})
+
+            txn = self._contract.functions.storeEvidence(
+                hash_str, metadata_json
+            ).build_transaction({
+                "from": self._account.address,
+                "nonce": nonce,
+                "gas": int(gas_estimate * 1.2),  # 20% buffer
+                "gasPrice": self._w3.eth.gas_price,
+                "chainId": chain_id,
+            })
+
+            # Sign and send
+            signed = self._account.sign_transaction(txn)
+            tx_hash = self._w3.eth.send_raw_transaction(signed.raw_transaction)
+
+            print(f"[Blockchain] Transaction sent: {tx_hash.hex()}")
+            print("[Blockchain] Waiting for confirmation (2 blocks)...")
+
+            # Wait for receipt (2 confirmations)
+            receipt = self._w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
+
+            if receipt.status != 1:
+                return BlockchainAnchorResult(
+                    tx_hash=tx_hash.hex(),
+                    block_number=receipt.blockNumber,
+                    evidence_id=0,
+                    gas_used=receipt.gasUsed,
+                    success=False,
+                    error="Transaction reverted (status=0)",
+                )
+
+            # Parse EvidenceStored event to get evidenceId
+            evidence_id = 0
+            try:
+                logs = self._contract.events.EvidenceStored().process_receipt(receipt)
+                if logs:
+                    evidence_id = int(logs[0]["args"]["evidenceId"])
+            except Exception:
+                # If event parsing fails, look up via verifyHash
+                try:
+                    result = self._contract.functions.verifyHash(hash_str).call()
+                    evidence_id = int(result[1])
+                except Exception:
+                    pass
+
+            return BlockchainAnchorResult(
+                tx_hash=tx_hash.hex(),
+                block_number=receipt.blockNumber,
+                evidence_id=evidence_id,
+                gas_used=receipt.gasUsed,
+                success=True,
+            )
+
+        except Exception as e:
+            return BlockchainAnchorResult(
+                tx_hash="", block_number=0, evidence_id=0, gas_used=0,
+                success=False, error=str(e),
+            )
