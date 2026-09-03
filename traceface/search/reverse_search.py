@@ -143,10 +143,61 @@ def _get_engine_class(engine: str) -> Any:
 
 
 def _parse_engine_results(engine: str, raw_results: list[Any]) -> list[SearchMatch]:
-    """Parse raw PicImageSearch results into SearchMatch objects."""
+    """
+    Parse raw PicImageSearch results into SearchMatch objects.
+    Ported from JARVIS identification/reverse_search.py _parse_engine_results().
+    """
     matches: list[SearchMatch] = []
     for item in raw_results[:15]:
         url = getattr(item, "url", "") or ""
-        if url:
-            matches.append(SearchMatch(url=url, source=engine))
+        if not url:
+            continue
+
+        thumbnail = getattr(item, "thumbnail", None)
+        title = getattr(item, "title", "") or ""
+        similarity_raw = getattr(item, "similarity", 0.5)
+
+        if isinstance(similarity_raw, str):
+            try:
+                similarity = float(similarity_raw.strip("%")) / 100.0
+            except ValueError:
+                similarity = 0.5
+        else:
+            similarity = float(similarity_raw) if similarity_raw else 0.5
+
+        person_name = _extract_name_from_title(title)
+
+        matches.append(SearchMatch(
+            url=url,
+            thumbnail_url=thumbnail,
+            similarity=max(0.0, min(1.0, similarity)),
+            source=engine,
+            person_name=person_name,
+        ))
     return matches
+
+
+def _extract_name_from_title(title: str) -> str | None:
+    """
+    Best-effort name extraction from a search result title.
+    Ported from JARVIS identification/reverse_search.py _extract_name_from_title().
+    """
+    if not title:
+        return None
+
+    # Strip parenthetical handles like (@jdoe)
+    title = re.sub(r"\s*\(@?\w+\)", "", title)
+
+    # Strip trailing platform names
+    cleaned = re.split(
+        r"\s*[-|–—/\\]\s*(?:LinkedIn|Twitter|X|Instagram|Facebook|YouTube|Reddit)",
+        title
+    )
+    candidate = cleaned[0].strip() if cleaned else title.strip()
+
+    # Basic heuristic: 2–4 capitalized words
+    words = candidate.split()
+    if 2 <= len(words) <= 4 and all(w[0].isupper() for w in words if w):
+        return candidate
+
+    return None
