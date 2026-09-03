@@ -326,3 +326,63 @@ class BlockchainClient:
                 tx_hash="", block_number=0, evidence_id=0, gas_used=0,
                 success=False, error=str(e),
             )
+
+    def verify(self, local_hash: str) -> BlockchainVerifyResult:
+        """
+        Verify a local evidence hash against the blockchain.
+
+        Steps:
+        1. Call verifyHash(local_hash) on the contract
+        2. If found, fetch stored evidence via getEvidence(evidenceId)
+        3. Compare stored fileHash == local_hash
+        4. Return VERIFIED or TAMPERED
+
+        Args:
+            local_hash: SHA-256 hex digest to look up
+
+        Returns:
+            BlockchainVerifyResult
+        """
+        err = self._connect()
+        if err:
+            return BlockchainVerifyResult(
+                exists=False, evidence_id=0, stored_hash="",
+                local_hash=local_hash, verified=False, error=err,
+            )
+
+        try:
+            # Step 1: Check if hash exists
+            verify_result = self._contract.functions.verifyHash(local_hash).call()
+            exists = bool(verify_result[0])
+            evidence_id = int(verify_result[1])
+
+            if not exists:
+                return BlockchainVerifyResult(
+                    exists=False, evidence_id=0, stored_hash="",
+                    local_hash=local_hash, verified=False,
+                )
+
+            # Step 2: Get stored evidence
+            evidence = self._contract.functions.getEvidence(evidence_id).call()
+            stored_hash = evidence[0]  # fileHash
+
+            # Step 3: Compare
+            verified = stored_hash == local_hash
+
+            return BlockchainVerifyResult(
+                exists=True,
+                evidence_id=evidence_id,
+                stored_hash=stored_hash,
+                local_hash=local_hash,
+                verified=verified,
+            )
+
+        except Exception as e:
+            return BlockchainVerifyResult(
+                exists=False, evidence_id=0, stored_hash="",
+                local_hash=local_hash, verified=False, error=str(e),
+            )
+
+    def get_explorer_url(self, tx_hash: str) -> str:
+        """Return Polygon Amoy explorer URL for a transaction hash."""
+        return f"{_AMOY_EXPLORER}/tx/{tx_hash}"
