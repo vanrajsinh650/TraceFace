@@ -56,6 +56,34 @@ class EvidencePackage:
     runner_up_score: Optional[float] = None
     margin: Optional[float] = None
 
+    def to_canonical_dict(self) -> dict:
+        """
+        Return the canonical dict used for hashing.
+        All keys are included. None values are included as null.
+        """
+        d = asdict(self)
+        # Round floats to 6 decimal places for canonical representation
+        for key in ("face_similarity_score", "similarity_threshold", "runner_up_score", "margin"):
+            if d[key] is not None:
+                d[key] = round(float(d[key]), 6)
+        return d
+
+    def canonical_json(self) -> str:
+        """
+        Deterministic JSON representation.
+        sort_keys=True ensures key order is alphabetical regardless of insertion order.
+        separators=(',', ':') removes whitespace for minimal canonical form.
+        """
+        return json.dumps(self.to_canonical_dict(), sort_keys=True, separators=(",", ":"))
+
+    def sha256(self) -> str:
+        """
+        Compute SHA-256 of the canonical JSON representation.
+        Returns hex digest (64 characters).
+        """
+        canonical_bytes = self.canonical_json().encode("utf-8")
+        return hashlib.sha256(canonical_bytes).hexdigest()
+
 
 def hash_image_bytes(image_bytes: bytes) -> str:
     """Compute SHA-256 of raw image bytes. Used for query_image_sha256."""
