@@ -88,3 +88,90 @@ class EvidencePackage:
 def hash_image_bytes(image_bytes: bytes) -> str:
     """Compute SHA-256 of raw image bytes. Used for query_image_sha256."""
     return hashlib.sha256(image_bytes).hexdigest()
+
+
+def create_evidence_package(
+    query_image_bytes: bytes,
+    matched_url: str,
+    matched_image_url: str,
+    search_provider: str,
+    face_similarity_score: float,
+    candidate_faces_checked: int,
+    similarity_threshold: float,
+    model_name: str = "buffalo_l",
+    person_name: Optional[str] = None,
+    runner_up_score: Optional[float] = None,
+    margin: Optional[float] = None,
+) -> EvidencePackage:
+    """
+    Create a deterministic evidence package from a verified match.
+
+    Args:
+        query_image_bytes: Raw bytes of the input query image
+        matched_url: URL of the matched web page
+        matched_image_url: URL of the matched image (to download for verification)
+        search_provider: Which search engine found this match
+        face_similarity_score: Best cosine similarity from face verification
+        candidate_faces_checked: How many faces were detected in candidate
+        similarity_threshold: The threshold used to determine pass/fail
+        model_name: InsightFace model used
+        person_name: Best-guess name from search results (optional)
+        runner_up_score: Second-best similarity score (optional)
+        margin: best_score - runner_up_score (optional)
+
+    Returns:
+        EvidencePackage (call .sha256() to get the blockchain commitment)
+    """
+    from urllib.parse import urlparse
+
+    source_domain = urlparse(matched_url).netloc.lower()
+    query_sha256 = hash_image_bytes(query_image_bytes)
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    return EvidencePackage(
+        query_image_sha256=query_sha256,
+        matched_url=matched_url,
+        matched_image_url=matched_image_url,
+        source_domain=source_domain,
+        search_provider=search_provider,
+        face_similarity_score=face_similarity_score,
+        candidate_faces_checked=candidate_faces_checked,
+        similarity_threshold=similarity_threshold,
+        model_name=model_name,
+        timestamp_utc=timestamp,
+        person_name=person_name,
+        runner_up_score=runner_up_score,
+        margin=margin,
+    )
+
+
+def save_evidence_package(
+    package: EvidencePackage,
+    evidence_hash: str,
+    output_dir: Path | str = "results",
+) -> Path:
+    """
+    Save the evidence package as a JSON file.
+
+    The file is saved to: results/evidence_<hash[:12]>.json
+    results/ is gitignored.
+
+    Returns:
+        Path to the saved file.
+    """
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    filename = f"evidence_{evidence_hash[:12]}.json"
+    output_path = output_dir / filename
+
+    full_record = {
+        "evidence_package": package.to_canonical_dict(),
+        "evidence_sha256": evidence_hash,
+        "canonical_json": package.canonical_json(),
+    }
+
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(full_record, f, indent=2)
+
+    return output_path
