@@ -269,18 +269,64 @@ class PimEyesSearcher:
         return all_results
 
     async def _build_matches(self, results: list[dict]) -> list[SearchMatch]:
-        """Build initial SearchMatch objects from raw results."""
+        """
+        Resolve PimEyes proxy URLs and build SearchMatch objects.
+        Ported from JARVIS identification/pimeyes.py _resolve_and_build_matches().
+        """
+        semaphore = asyncio.Semaphore(10)
+
+        async def resolve_one(result: dict) -> Optional[SearchMatch]:
+            source_url = result.get("sourceUrl", "")
+            thumbnail_url = result.get("thumbnailUrl") or result.get("imageUrl")
+            quality = float(result.get("quality", 0))
+            domain = result.get("domain", "")
+
+            similarity = quality / 100.0 if quality > 1.0 else quality
+            similarity = max(0.0, min(1.0, similarity))
+
+            real_url = source_url
+            if source_url:
+                async with semaphore:
+                    real_url = await self._resolve_redirect(source_url)
+
+            if not real_url:
+                return None
+
+            person_name = _extract_name_from_url(real_url, domain)
+
+            return SearchMatch(
+                url=real_url,
+                thumbnail_url=thumbnail_url,
+                similarity=similarity,
+                source="pimeyes",
+                person_name=person_name,
+            )
+
+        tasks = [resolve_one(r) for r in results]
+        resolved = await asyncio.gather(*tasks, return_exceptions=True)
+
         matches: list[SearchMatch] = []
-        for r in results:
-            url = r.get("sourceUrl", "")
-            if url:
-                matches.append(SearchMatch(
-                    url=url,
-                    thumbnail_url=r.get("thumbnailUrl") or r.get("imageUrl"),
-                    similarity=float(r.get("quality", 0)) / 100.0,
-                    source="pimeyes",
-                ))
+        for item in resolved:
+            if isinstance(item, SearchMatch):
+                matches.append(item)
         return matches
+
+    @staticmethod
+    async def _resolve_redirect(url: str) -> str:
+        """Follow redirect to get the real destination URL."""
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=httpx.Timeout(10.0), follow_redirects=True) as client:
+                resp = await client.head(url)
+                return str(resp.url)
+        except Exception:
+            try:
+                import httpx
+                async with httpx.AsyncClient(timeout=httpx.Timeout(10.0), follow_redirects=True) as client:
+                    resp = await client.get(url)
+                    return str(resp.url)
+            except Exception:
+                return url
 
     @staticmethod
     def _ensure_upright(image_bytes: bytes) -> bytes:
@@ -297,3 +343,29 @@ class PimEyesSearcher:
         except Exception:
             pass
         return image_bytes
+
+
+def _extract_name_from_url(url: str, domain: str) -> Optional[str]:
+    """
+    Best-effort person name extraction from a resolved URL.
+    Ported from JARVIS identification/pimeyes.py _extract_name_from_url().
+    """
+    parsed = urlparse(url)
+    path = parsed.path.strip("/")
+
+    # LinkedIn: /in/john-doe → "John Doe"
+    if "linkedin.com" in url:
+        match = re.search(r"/in/([^/?]+)", path)
+        if match:
+            slug = match.group(1)
+            name = slug.replace("-", " ").title()
+            if len(name) > 3 and not name.startswith("Http"):
+                return name
+
+    # Facebook: /people/John-Doe
+    if "facebook.com" in url:
+        match = re.search(r"/people/([^/?]+)", path)
+        if match:
+            return match.group(1).replace("-", " ").title()
+
+    return None
