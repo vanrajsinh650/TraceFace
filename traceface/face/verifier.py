@@ -163,3 +163,43 @@ class FaceVerifier:
             passed_threshold=best_score >= self._threshold,
             threshold_used=self._threshold,
         )
+
+    def verify_from_url(
+        self,
+        query_embedding: list[float],
+        candidate_url: str,
+        timeout: int = 15,
+    ) -> VerificationResult:
+        """
+        Download a candidate image from a URL and verify the face.
+
+        Args:
+            query_embedding: 512-dim ArcFace embedding of the query face
+            candidate_url: URL of the candidate image to download
+            timeout: Request timeout in seconds
+
+        Returns:
+            VerificationResult
+        """
+        try:
+            import httpx
+            with httpx.Client(timeout=timeout, follow_redirects=True) as client:
+                resp = client.get(
+                    candidate_url,
+                    headers={"User-Agent": "TraceFace/1.0 (research)"},
+                )
+                resp.raise_for_status()
+                image_bytes = resp.content
+        except Exception as e:
+            return VerificationResult(
+                best_score=0.0,
+                runner_up_score=None,
+                margin=None,
+                candidate_faces_checked=0,
+                matched_face_index=-1,
+                passed_threshold=False,
+                threshold_used=self._threshold,
+                error=f"Failed to download candidate image from {candidate_url}: {e}",
+            )
+
+        return self.verify(query_embedding, image_bytes)
