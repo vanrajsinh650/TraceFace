@@ -166,6 +166,8 @@ Displays and mathematically verifies the audit path locking the matched candidat
 python main.py proof results/evidence_<hash>.json
 ```
 
+> **Note on Evidence Files**: Generated evidence JSON files in `results/` are intentionally gitignored to prevent committing investigation artifacts, raw images, or session data to source control. Run the pipeline (`python main.py --image test_face.jpg`) to generate `results/evidence_<hash>.json`, which can then be tested with `verify`, `tamper-demo`, and `proof`.
+
 ---
 
 ## Live Demo & Screen Recording Script
@@ -251,11 +253,11 @@ Input image:   test_face.jpg (125 KB)
   ✓ Evidence graph built: 16 nodes, 19 edges
 
 [6/7] Constructing deterministic Merkle Evidence Tree...
-  ✓ Merkle Evidence Root: 50d44ed2c552be7cb490cd985d9480d4fa3e032ddf1c1b5a1a3b88250368c1c5
+  ✓ Merkle Evidence Root: 819f41a2ee8f12df5a283fd3fb8804c99bfe4155f6b8f4ce9f572a6675b7ea4e
   ✓ Merkle Tree leaves:   4
-  ✓ Evidence SHA-256:     b07d8c94ba61e521df84322c9eba2503ecbcb0af322f0967a9aece79f73ca192
+  ✓ Evidence SHA-256:     475a7d04d37fdb65747853f90176d9b72fbdda07f0975412c6b899e84b7d5bea
   ✓ Merkle Inclusion Proof verified for candidate_02 (path depth: 2)
-  ✓ Evidence package persisted: results/evidence_b07d8c94ba61.json
+  ✓ Evidence package persisted: results/evidence_475a7d04d37f.json
 
 [7/7] Anchoring Merkle Root & Discovered Post Fingerprint to Ethereum Sepolia...
   • Matched Post URL:    https://fb.ru/post/movies/2015/11/2/2589
