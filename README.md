@@ -103,7 +103,7 @@ The smart contract record locks:
 ### 2. Virtual Environment Setup
 ```bash
 # Clone repository
-git clone https://github.com/your-username/TraceFace.git
+git clone https://github.com/vanrajsinh650/TraceFace.git
 cd TraceFace
 
 # Create and activate virtual environment
@@ -294,7 +294,7 @@ Input image:   test_face.jpg (125 KB)
 - **Explorer**: [sepolia.etherscan.io](https://sepolia.etherscan.io)
 - **Deployed Address**: [`0x57306beBD4A3aFdec95b32fF39f9046aA338e8A2`](https://sepolia.etherscan.io/address/0x57306beBD4A3aFdec95b32fF39f9046aA338e8A2)
 - **Deployment Tx**: [`0x2ebc9f69bb71a4d417d244faa51f11643a3199bb1f89355a0ed2b6321e846611`](https://sepolia.etherscan.io/tx/0x2ebc9f69bb71a4d417d244faa51f11643a3199bb1f89355a0ed2b6321e846611) (Block: 11639090)
-- **TraceFace Anchor Tx**: [`0xa29aeb47ec064f5d5981532f981d3081014e1c65bc76a092c659511594f38ad8`](https://sepolia.etherscan.io/tx/a29aeb47ec064f5d5981532f981d3081014e1c65bc76a092c659511594f38ad8) (Block: 11639100)
+- **TraceFace Anchor Tx**: [`0xa29aeb47ec064f5d5981532f981d3081014e1c65bc76a092c659511594f38ad8`](https://sepolia.etherscan.io/tx/0xa29aeb47ec064f5d5981532f981d3081014e1c65bc76a092c659511594f38ad8) (Block: 11639100)
 - **Functions**:
   - `storeEvidence(string _fileHash, string _metadata)`: Commits the Merkle Root and JSON metadata.
   - `verifyHash(string _fileHash)`: Queries if a root exists on-chain and returns evidence ID.
@@ -311,6 +311,7 @@ python deploy_contract.py
 
 Run the deterministic test suite:
 ```bash
+source .venv/bin/activate
 python -m unittest discover -s tests -p "test_*.py" -v
 ```
 

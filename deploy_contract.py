@@ -22,7 +22,7 @@ SEPOLIA_EXPLORER = "https://sepolia.etherscan.io"
 
 
 def deploy() -> None:
-    rpc_url = os.environ.get("SEPOLIA_RPC_URL", "") or os.environ.get("POLYGON_RPC_URL", "")
+    rpc_url = os.environ.get("SEPOLIA_RPC_URL", "")
     private_key = os.environ.get("PRIVATE_KEY", "")
 
     if not private_key:

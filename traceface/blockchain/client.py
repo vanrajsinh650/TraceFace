@@ -132,11 +132,7 @@ class BlockchainClient:
         private_key: Optional[str] = None,
         contract_address: Optional[str] = None,
     ) -> None:
-        self._rpc_url = (
-            rpc_url
-            or os.environ.get("SEPOLIA_RPC_URL", "")
-            or os.environ.get("POLYGON_RPC_URL", "")
-        )
+        self._rpc_url = rpc_url or os.environ.get("SEPOLIA_RPC_URL", "")
         self._private_key = private_key or os.environ.get("PRIVATE_KEY", "")
         self._contract_address = contract_address or os.environ.get("CONTRACT_ADDRESS", "")
         self._w3 = None

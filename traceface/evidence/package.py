@@ -33,10 +33,6 @@ from traceface.evidence.models import (
 from traceface.evidence.scoring import EvidenceConfidenceScore
 
 
-def hash_image_bytes(image_bytes: bytes) -> str:
-    """Compute SHA-256 of raw image bytes. Legacy alias for compute_exact_sha256."""
-    return compute_exact_sha256(image_bytes)
-
 
 @dataclass
 class EvidencePackage:
@@ -75,72 +71,6 @@ class EvidencePackage:
     # Execution Latencies (observability)
     timings_ms: dict[str, int] = field(default_factory=dict)
 
-    # ── Backward Compatibility Properties (v1 interface) ───────────────────
-    @property
-    def query_image_sha256(self) -> str:
-        return self.query_info.query_image_sha256 if self.query_info else ""
-
-    @property
-    def matched_url(self) -> str:
-        return self.matched_candidate.matched_source_url if self.matched_candidate else ""
-
-    @property
-    def matched_image_url(self) -> str:
-        return self.matched_candidate.matched_image_url if self.matched_candidate else ""
-
-    @property
-    def source_domain(self) -> str:
-        return self.matched_candidate.source_domain if self.matched_candidate else ""
-
-    @property
-    def search_provider(self) -> str:
-        if self.matched_candidate and self.matched_candidate.providers:
-            return ",".join(self.matched_candidate.providers)
-        return "none"
-
-    @property
-    def face_similarity_score(self) -> float:
-        return self.matched_candidate.matched_face_similarity if self.matched_candidate else 0.0
-
-    @property
-    def candidate_faces_checked(self) -> int:
-        if self.candidates and self.matched_candidate:
-            for c in self.candidates:
-                if c.candidate_id == self.matched_candidate.matched_candidate_id:
-                    return c.candidate_faces_checked
-        return 1
-
-    @property
-    def similarity_threshold(self) -> float:
-        return 0.35
-
-    @property
-    def model_name(self) -> str:
-        return self.query_info.model_name if self.query_info else "buffalo_l"
-
-    @property
-    def timestamp_utc(self) -> str:
-        return self.created_at
-
-    @property
-    def person_name(self) -> Optional[str]:
-        return self.matched_candidate.person_name if self.matched_candidate else None
-
-    @property
-    def runner_up_score(self) -> Optional[float]:
-        if self.candidates and self.matched_candidate:
-            for c in self.candidates:
-                if c.candidate_id == self.matched_candidate.matched_candidate_id:
-                    return c.runner_up_score
-        return None
-
-    @property
-    def margin(self) -> Optional[float]:
-        if self.candidates and self.matched_candidate:
-            for c in self.candidates:
-                if c.candidate_id == self.matched_candidate.matched_candidate_id:
-                    return c.margin
-        return None
 
     # ── Canonical Serialization & Verification ─────────────────────────────
     def to_canonical_dict(self) -> dict[str, Any]:
@@ -319,82 +249,6 @@ def build_evidence_package(
         timings_ms=timings_ms or {},
     )
 
-
-# ── Backwards Compatible Factory (v1 compatibility) ─────────────────────────
-def create_evidence_package(
-    query_image_bytes: bytes,
-    matched_url: str,
-    matched_image_url: str,
-    search_provider: str,
-    face_similarity_score: float,
-    candidate_faces_checked: int,
-    similarity_threshold: float,
-    model_name: str = "buffalo_l",
-    person_name: Optional[str] = None,
-    runner_up_score: Optional[float] = None,
-    margin: Optional[float] = None,
-) -> EvidencePackage:
-    """
-    Legacy constructor for backwards compatibility with v1 callers.
-    """
-    from urllib.parse import urlparse
-    from traceface.evidence.scoring import calculate_evidence_confidence
-
-    domain = urlparse(matched_url).netloc.lower()
-    investigation_id = f"inv_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
-
-    matched = MatchedCandidateEvidence(
-        matched_candidate_id="candidate_01",
-        matched_source_url=matched_url,
-        matched_image_url=matched_image_url,
-        matched_image_sha256=compute_exact_sha256(b"stub_matched_image"),
-        matched_image_perceptual_hash=None,
-        matched_face_similarity=face_similarity_score,
-        matched_verification_status="MATCH",
-        source_domain=domain,
-        providers=[search_provider] if search_provider else ["manual"],
-        evidence_confidence=75.0,
-        person_name=person_name,
-    )
-
-    cand_item = CandidateEvidenceItem(
-        candidate_id="candidate_01",
-        canonical_url=matched_url,
-        source_domain=domain,
-        image_url=matched_image_url,
-        providers=[search_provider] if search_provider else ["manual"],
-        face_similarity_score=face_similarity_score,
-        runner_up_score=runner_up_score,
-        margin=margin,
-        candidate_faces_checked=candidate_faces_checked,
-        verification_status="MATCH",
-        evidence_confidence=75.0,
-        person_name=person_name,
-    )
-
-    score = calculate_evidence_confidence(
-        face_similarity=face_similarity_score,
-        threshold=similarity_threshold,
-        margin=margin,
-        candidate_faces_checked=candidate_faces_checked,
-        providers=[search_provider],
-        matched_url=matched_url,
-    )
-
-    graph = EvidenceGraph(investigation_id=investigation_id)
-    graph.add_node(investigation_id, "investigation", "Investigation")
-
-    return build_evidence_package(
-        investigation_id=investigation_id,
-        query_image_bytes=query_image_bytes,
-        query_face_bbox=(0, 0, 100, 100),
-        query_face_confidence=0.99,
-        provider_runs={search_provider: {"status": "success", "latency_ms": 100, "matches_count": 1}},
-        candidate_items=[cand_item],
-        matched_candidate=matched,
-        confidence_score=score,
-        evidence_graph=graph,
-    )
 
 
 def save_evidence_package(

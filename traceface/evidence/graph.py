@@ -126,7 +126,7 @@ def build_investigation_graph(
     graph.add_edge(investigation_id, query_node_id, "investigated_with")
 
     # 3. Query Face node
-    face_node_id = f"face_query_primary"
+    face_node_id = "face_query_primary"
     graph.add_node(
         face_node_id,
         "face",

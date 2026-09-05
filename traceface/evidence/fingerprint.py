@@ -11,6 +11,8 @@ import hashlib
 import io
 from dataclasses import dataclass
 from typing import Optional
+
+import numpy as np
 from PIL import Image
 
 
@@ -47,7 +49,6 @@ def compute_perceptual_dhash(image_bytes: bytes, hash_size: int = 8) -> Optional
             gray = img.convert("L")
             # Step 2: Resize to (9, 8)
             resized = gray.resize((hash_size + 1, hash_size), Image.Resampling.BILINEAR)
-            import numpy as np
             pixels = np.asarray(resized, dtype=np.int32).flatten().tolist()
 
             # Step 3: Compute difference bits
