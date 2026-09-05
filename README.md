@@ -4,6 +4,8 @@
 
 **HH Goa 2026 — Task 3: Face Discovery, Evidence Fusion & Cryptographic Ledger**
 
+> **Core Guarantee**: TraceFace proves that the evidence package presented for verification matches the cryptographic commitment anchored on Ethereum Sepolia, and it detects subsequent modification of that evidence.
+
 Most face search pipelines simply find a matching candidate and push an arbitrary hash to a blockchain. TraceFace preserves the complete chain of investigative provenance: concurrent multi-engine discovery, provider corroboration, candidate normalization, independent multi-face ArcFace verification, explainable multi-signal confidence scoring, and a deterministic Merkle Evidence Tree anchored to Ethereum Sepolia.
 
 ```text
@@ -92,7 +94,7 @@ flowchart TD
     
     subgraph Cryptographic Ledger
         J --> K[Candidate Evidence Leaves]
-        K --> L[RFC 6962 Binary Merkle Tree]
+        K --> L[RFC 6962-Inspired Merkle Tree]
         L --> M[Merkle Evidence Root]
         M --> N[Candidate Inclusion Proof]
     end
@@ -137,7 +139,7 @@ The smart contract record locks:
 - **Result Normalization & Deduplication**: Canonical URL parsing, query tracking parameter removal (`utm_*`, `fbclid`, `ref`), and multi-provider agreement tracking (`"providers": ["google", "yandex"]`).
 - **Coarse-to-Fine Processing**: Designed for efficient candidate pre-filtering (payload validation, minimum dimensions, extreme aspect ratio rejection) before running deep 512D ArcFace embeddings.
 - **Multi-Signal Evidence Confidence**: Transparent 0–100 score combining ArcFace cosine similarity (45 pts), runner-up margin (20 pts), provider agreement (15 pts), platform authenticity (10 pts), and image fidelity (10 pts).
-- **Deterministic Merkle Tree**: RFC 6962 domain separation (`0x00` leaf, `0x01` internal node), deterministic sorting, and duplicate-last odd node handling.
+- **Deterministic Merkle Tree**: RFC 6962-inspired domain separation (`0x00` leaf, `0x01` internal node), deterministic sorting, and duplicate-last odd node handling.
 - **Cryptographic Inclusion Proofs**: Proves mathematically that a specific candidate was part of the evidence set committed on-chain.
 - **Zero-Dependency Perceptual Fingerprint**: Built-in 64-bit difference hash (`dhash-64`) to confirm visual equivalence alongside exact SHA-256 byte integrity.
 
@@ -249,7 +251,7 @@ python main.py proof fixtures/demo_evidence.json
 ## Public Blockchain Records
 
 - **Network**: Ethereum Sepolia Testnet (Chain ID: `11155111`)
-- **Contract**: `contracts/EvidenceStorage.sol`
+- **Contract**: `contracts/EvidenceStorage.sol` (single canonical contract; deployed to Sepolia)
 - **Explorer**: [sepolia.etherscan.io](https://sepolia.etherscan.io)
 - **Deployed Address**: [`0x57306beBD4A3aFdec95b32fF39f9046aA338e8A2`](https://sepolia.etherscan.io/address/0x57306beBD4A3aFdec95b32fF39f9046aA338e8A2)
 - **Deployment Tx**: [`0x2ebc9f69bb71a4d417d244faa51f11643a3199bb1f89355a0ed2b6321e846611`](https://sepolia.etherscan.io/tx/0x2ebc9f69bb71a4d417d244faa51f11643a3199bb1f89355a0ed2b6321e846611) (Block: 11639090)
@@ -291,7 +293,7 @@ Test coverage includes:
 
 1. **Not Real-World Identity Certification**: Face embedding similarity measures mathematical feature distance between two images under specific lighting, pose, and resolution. It is not legal proof of personhood or real-world identity.
 2. **Search Engine False Positives/Negatives**: Public search engines (Google, Yandex, Bing) rely on visual similarity indexes and web crawls which may include lookalikes, stock images, or irrelevant results.
-3. **Integrity vs. Truth**: Anchoring a Merkle root to Ethereum Sepolia guarantees that the investigation evidence has not been tampered with since anchoring. It does **not** certify that the underlying online posts or claims are factually truthful.
+3. **Integrity vs. Truth**: Anchoring a Merkle root to Ethereum Sepolia proves that the investigation evidence package presented matches the cryptographic commitment anchored on-chain and has not been altered since anchoring. It demonstrates what the pipeline retrieved and committed at that time, but does **not** certify that the underlying online posts or claims are factually truthful, nor does the blockchain independently witness the live contents of external URLs.
 4. **Live Search Variability**: A live run uses current external search providers, so candidate results, provider availability, timing, and investigation IDs may differ between runs. The public proof fixture is provided separately so judges can deterministically verify the cryptographic commitment that TraceFace has published on Ethereum Sepolia.
 5. **Credential Safety**: Private keys and API credentials must never be committed to source control. Use environment variables.
 6. **Intended Use**: TraceFace is an academic/hackathon proof-of-concept for transparent digital evidence ledgers.
@@ -306,4 +308,4 @@ TraceFace builds upon open-source foundations:
 - **eye_of_web** by Mehmet Yüksel Şekeroğlu — MIT License (InsightFace initialization & cosine similarity principles).
 - **JARVIS** by affaan-m — Attribution maintained (PimEyes flow & reverse search orchestration).
 - **blockchain-evidence** by Gooichand / EVID-DGC — Apache 2.0 (EvidenceStorage smart contract design).
-- **RFC 6962**: Certificate Transparency specification for domain-separated binary Merkle trees.
+- **RFC 6962**: Inspiration for domain-separated binary Merkle trees (`0x00` leaf, `0x01` internal node prefixes).

@@ -9,7 +9,7 @@ Algorithm & Specifications:
    - Each leaf represents an evidence unit (e.g. candidate or investigation metadata).
    - Canonicalized via deterministic JSON (sort_keys=True, separators=(',', ':')).
    - Leaves are deterministically sorted by leaf_id.
-2. Domain Separation (RFC 6962 standard):
+2. Domain Separation (RFC 6962-inspired):
    - Leaf hash: SHA256(0x00 || canonical_utf8_bytes)
    - Internal node: SHA256(0x01 || left_child_bytes || right_child_bytes)
    This prevents second-preimage attacks between leaves and intermediate nodes.
@@ -37,7 +37,7 @@ class MerkleLeaf:
     leaf_hash: str = ""
 
     def compute_hash(self) -> str:
-        """Compute RFC 6962 domain-separated leaf hash."""
+        """Compute RFC 6962-inspired domain-separated leaf hash (prefix 0x00)."""
         self.canonical_json = json.dumps(self.data, sort_keys=True, separators=(",", ":"))
         hasher = hashlib.sha256()
         hasher.update(b"\x00")
