@@ -1,30 +1,27 @@
 """
-TraceFace — Blockchain Client (Polygon Amoy)
-=============================================
-Python port of: blockchain-evidence/services/blockchain/blockchainService.js
+TraceFace — Blockchain Client & Cryptographic Re-Verifier (Polygon Amoy)
+=======================================================================
+Ported and evolved from: blockchain-evidence/services/blockchain/blockchainService.js
 Original source: https://github.com/Gooichand/blockchain-evidence (Apache 2.0)
 
-Uses web3.py (v6+) to interact with the EvidenceStorage smart contract on Polygon Amoy.
-
-Required environment variables (.env):
-  POLYGON_RPC_URL    — Amoy RPC endpoint (e.g., https://rpc-amoy.polygon.technology)
-  PRIVATE_KEY        — Ethereum wallet private key (WITHOUT 0x prefix)
-  CONTRACT_ADDRESS   — Deployed EvidenceStorage contract address
-
-SECURITY:
-  - NEVER store the private key in source code.
-  - NEVER commit .env to git.
-  - Only store SHA-256 hashes on-chain — not raw embeddings or biometric data.
+Interacts with EvidenceStorage.sol on Polygon Amoy testnet.
+Anchors the deterministic Merkle Evidence Root and metadata commitments.
+Performs independent re-verification and tamper detection.
 """
 from __future__ import annotations
 
 import json
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
-# EvidenceStorage ABI — from blockchain-evidence/contracts/EvidenceStorage.abi.json
-# Includes only the functions we need: storeEvidence, getEvidence, verifyHash
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
+# EvidenceStorage ABI — from contracts/EvidenceStorage.abi.json
 _ABI = [
     {
         "inputs": [
@@ -59,25 +56,14 @@ _ABI = [
         "stateMutability": "view",
         "type": "function",
     },
-    {
-        "inputs": [
-            {"internalType": "address", "name": "_user", "type": "address"},
-            {"internalType": "string", "name": "_role", "type": "string"},
-        ],
-        "name": "authorizeUser",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function",
-    },
 ]
 
-# Polygon Amoy chain ID
 _AMOY_CHAIN_ID = 80002
 _AMOY_EXPLORER = "https://amoy.polygonscan.com"
 
 
 class BlockchainAnchorResult:
-    """Result of a blockchain anchor (store) operation."""
+    """Result of a blockchain anchor operation."""
 
     def __init__(
         self,
@@ -86,6 +72,7 @@ class BlockchainAnchorResult:
         evidence_id: int,
         gas_used: int,
         success: bool,
+        merkle_root: str = "",
         error: Optional[str] = None,
     ) -> None:
         self.tx_hash = tx_hash
@@ -93,14 +80,17 @@ class BlockchainAnchorResult:
         self.evidence_id = evidence_id
         self.gas_used = gas_used
         self.success = success
+        self.merkle_root = merkle_root
         self.error = error
 
     def explorer_url(self) -> str:
-        return f"{_AMOY_EXPLORER}/tx/{self.tx_hash}"
+        if self.tx_hash:
+            return f"{_AMOY_EXPLORER}/tx/{self.tx_hash}"
+        return ""
 
 
 class BlockchainVerifyResult:
-    """Result of a blockchain verification (hash lookup) operation."""
+    """Result of blockchain verification for a Merkle root or evidence hash."""
 
     def __init__(
         self,
@@ -109,13 +99,15 @@ class BlockchainVerifyResult:
         stored_hash: str,
         local_hash: str,
         verified: bool,
+        metadata: Optional[dict[str, Any]] = None,
         error: Optional[str] = None,
     ) -> None:
         self.exists = exists
         self.evidence_id = evidence_id
         self.stored_hash = stored_hash
         self.local_hash = local_hash
-        self.verified = verified  # True only if exists AND stored_hash == local_hash
+        self.verified = verified
+        self.metadata = metadata
         self.error = error
 
     @property
@@ -123,23 +115,15 @@ class BlockchainVerifyResult:
         if self.error:
             return f"ERROR: {self.error}"
         if not self.exists:
-            return "NOT FOUND — hash not anchored on this contract"
+            return "NOT_FOUND"
         if self.verified:
             return "VERIFIED"
-        return "TAMPERED — stored hash does not match local hash"
+        return "TAMPERED"
 
 
 class BlockchainClient:
     """
-    Polygon Amoy blockchain client for EvidenceStorage contract.
-
-    Python port of blockchain-evidence/services/blockchain/blockchainService.js
-    Original source: https://github.com/Gooichand/blockchain-evidence (Apache 2.0)
-
-    Usage:
-        client = BlockchainClient()
-        anchor = await client.anchor(evidence_hash, metadata_json)
-        verify = await client.verify(evidence_hash, local_hash)
+    Polygon Amoy client for EvidenceStorage contract.
     """
 
     def __init__(
@@ -155,8 +139,11 @@ class BlockchainClient:
         self._contract = None
         self._account = None
 
+    @property
+    def is_configured(self) -> bool:
+        return bool(self._rpc_url and self._private_key and self._contract_address)
+
     def _check_config(self) -> Optional[str]:
-        """Return error message if config is incomplete, else None."""
         missing = []
         if not self._rpc_url:
             missing.append("POLYGON_RPC_URL")
@@ -168,14 +155,13 @@ class BlockchainClient:
             return f"Missing environment variables: {', '.join(missing)}"
         return None
 
-    # Fallback RPC endpoints tried in order if primary fails
     _FALLBACK_RPCS = [
         "https://polygon-amoy-bor-rpc.publicnode.com",
         "https://rpc.ankr.com/polygon_amoy",
+        "https://rpc-amoy.polygon.technology",
     ]
 
     def _connect(self) -> Optional[str]:
-        """Initialize web3.py connection and contract. Returns error string or None."""
         if self._w3 is not None:
             return None
 
@@ -189,104 +175,80 @@ class BlockchainClient:
         except ImportError:
             return "web3 not installed. Run: pip install web3"
 
-        # Try primary RPC URL, then fallbacks
-        endpoints_to_try = [self._rpc_url] + self._FALLBACK_RPCS
+        endpoints = [self._rpc_url] + [e for e in self._FALLBACK_RPCS if e != self._rpc_url]
         last_error = ""
 
-        for endpoint in endpoints_to_try:
+        for endpoint in endpoints:
             try:
-                w3 = Web3(Web3.HTTPProvider(endpoint, request_kwargs={"timeout": 10}))
+                w3 = Web3(Web3.HTTPProvider(endpoint, request_kwargs={"timeout": 12}))
                 w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
-
                 if not w3.is_connected():
                     last_error = f"Cannot connect to RPC: {endpoint}"
                     continue
 
-                # Build account from private key
                 pk = self._private_key
                 if not pk.startswith("0x"):
                     pk = "0x" + pk
                 account = w3.eth.account.from_key(pk)
-
-                # Build contract
                 checksum_addr = Web3.to_checksum_address(self._contract_address)
                 contract = w3.eth.contract(address=checksum_addr, abi=_ABI)
 
-                # All good — commit
                 self._w3 = w3
                 self._account = account
                 self._contract = contract
-                print(f"[Blockchain] Connected to Polygon Amoy via {endpoint}")
                 return None
-
             except Exception as e:
-                last_error = f"RPC {endpoint} failed: {e}"
+                last_error = str(e)
                 continue
 
-        self._w3 = None
-        return f"All RPC endpoints failed. Last error: {last_error}"
+        return f"All RPC connections failed: {last_error}"
 
     def get_wallet_address(self) -> Optional[str]:
-        """Return the wallet address (public, safe to display)."""
         err = self._connect()
         if err or self._account is None:
             return None
         return self._account.address
 
-    def anchor(self, evidence_hash: str, metadata: dict) -> BlockchainAnchorResult:
+    def anchor(self, merkle_root: str, metadata: dict[str, Any]) -> BlockchainAnchorResult:
         """
-        Anchor an evidence hash on the blockchain.
-
-        Stores: storeEvidence(evidence_hash, json.dumps(metadata))
-
-        Args:
-            evidence_hash: SHA-256 hex digest of the canonical evidence JSON
-            metadata: Dict with non-sensitive metadata (score, url, timestamp, etc.)
-
-        Returns:
-            BlockchainAnchorResult with tx_hash, block_number, evidence_id
+        Anchor the Merkle root and metadata commitment on Polygon Amoy.
         """
         err = self._connect()
         if err:
             return BlockchainAnchorResult(
                 tx_hash="", block_number=0, evidence_id=0, gas_used=0,
-                success=False, error=err,
+                success=False, merkle_root=merkle_root, error=err,
             )
 
-        # Prefix hash with "0x" if not present, for clarity in metadata
-        hash_str = evidence_hash if evidence_hash.startswith("0x") else evidence_hash
+        root_str = merkle_root if merkle_root.startswith("0x") else "0x" + merkle_root
         metadata_json = json.dumps(metadata, sort_keys=True, separators=(",", ":"))
 
         try:
-            from web3 import Web3
+            balance = self._w3.eth.get_balance(self._account.address)
+            if balance == 0:
+                return BlockchainAnchorResult(
+                    tx_hash="", block_number=0, evidence_id=0, gas_used=0,
+                    success=False, merkle_root=merkle_root,
+                    error=f"Wallet {self._account.address} has 0 MATIC. Fund from https://faucet.polygon.technology",
+                )
 
-            # Build transaction
             nonce = self._w3.eth.get_transaction_count(self._account.address)
-            chain_id = self._w3.eth.chain_id
-
-            # Estimate gas
             gas_estimate = self._contract.functions.storeEvidence(
-                hash_str, metadata_json
+                root_str, metadata_json
             ).estimate_gas({"from": self._account.address})
 
             txn = self._contract.functions.storeEvidence(
-                hash_str, metadata_json
+                root_str, metadata_json
             ).build_transaction({
                 "from": self._account.address,
                 "nonce": nonce,
-                "gas": int(gas_estimate * 1.2),  # 20% buffer
+                "gas": int(gas_estimate * 1.25),
                 "gasPrice": self._w3.eth.gas_price,
-                "chainId": chain_id,
+                "chainId": _AMOY_CHAIN_ID,
             })
 
-            # Sign and send
             signed = self._account.sign_transaction(txn)
             tx_hash = self._w3.eth.send_raw_transaction(signed.raw_transaction)
-
-            print(f"[Blockchain] Transaction sent: {tx_hash.hex()}")
-            print("[Blockchain] Waiting for confirmation (2 blocks)...")
-
-            # Wait for receipt (2 confirmations)
             receipt = self._w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
 
             if receipt.status != 1:
@@ -296,20 +258,19 @@ class BlockchainClient:
                     evidence_id=0,
                     gas_used=receipt.gasUsed,
                     success=False,
-                    error="Transaction reverted (status=0)",
+                    merkle_root=merkle_root,
+                    error="Transaction reverted on-chain",
                 )
 
-            # Parse EvidenceStored event to get evidenceId
             evidence_id = 0
             try:
                 logs = self._contract.events.EvidenceStored().process_receipt(receipt)
                 if logs:
                     evidence_id = int(logs[0]["args"]["evidenceId"])
             except Exception:
-                # If event parsing fails, look up via verifyHash
                 try:
-                    result = self._contract.functions.verifyHash(hash_str).call()
-                    evidence_id = int(result[1])
+                    res = self._contract.functions.verifyHash(root_str).call()
+                    evidence_id = int(res[1])
                 except Exception:
                     pass
 
@@ -319,70 +280,70 @@ class BlockchainClient:
                 evidence_id=evidence_id,
                 gas_used=receipt.gasUsed,
                 success=True,
+                merkle_root=merkle_root,
             )
-
         except Exception as e:
             return BlockchainAnchorResult(
                 tx_hash="", block_number=0, evidence_id=0, gas_used=0,
-                success=False, error=str(e),
+                success=False, merkle_root=merkle_root, error=str(e),
             )
 
-    def verify(self, local_hash: str) -> BlockchainVerifyResult:
+    def verify(self, merkle_root: str) -> BlockchainVerifyResult:
         """
-        Verify a local evidence hash against the blockchain.
-
-        Steps:
-        1. Call verifyHash(local_hash) on the contract
-        2. If found, fetch stored evidence via getEvidence(evidenceId)
-        3. Compare stored fileHash == local_hash
-        4. Return VERIFIED or TAMPERED
-
-        Args:
-            local_hash: SHA-256 hex digest to look up
-
-        Returns:
-            BlockchainVerifyResult
+        Query smart contract to verify if a Merkle root exists on Polygon Amoy.
         """
         err = self._connect()
         if err:
             return BlockchainVerifyResult(
                 exists=False, evidence_id=0, stored_hash="",
-                local_hash=local_hash, verified=False, error=err,
+                local_hash=merkle_root, verified=False, error=err,
             )
 
+        root_str = merkle_root if merkle_root.startswith("0x") else "0x" + merkle_root
+
         try:
-            # Step 1: Check if hash exists
-            verify_result = self._contract.functions.verifyHash(local_hash).call()
-            exists = bool(verify_result[0])
-            evidence_id = int(verify_result[1])
+            verify_res = self._contract.functions.verifyHash(root_str).call()
+            exists = bool(verify_res[0])
+            evidence_id = int(verify_res[1])
+
+            if not exists:
+                # Also try without 0x prefix if stored as raw hex
+                raw_res = self._contract.functions.verifyHash(merkle_root.lstrip("0x")).call()
+                if raw_res[0]:
+                    exists = True
+                    evidence_id = int(raw_res[1])
 
             if not exists:
                 return BlockchainVerifyResult(
                     exists=False, evidence_id=0, stored_hash="",
-                    local_hash=local_hash, verified=False,
+                    local_hash=merkle_root, verified=False,
                 )
 
-            # Step 2: Get stored evidence
-            evidence = self._contract.functions.getEvidence(evidence_id).call()
-            stored_hash = evidence[0]  # fileHash
+            ev = self._contract.functions.getEvidence(evidence_id).call()
+            stored_hash = ev[0]
+            meta_str = ev[1]
+            metadata = None
+            try:
+                metadata = json.loads(meta_str)
+            except Exception:
+                pass
 
-            # Step 3: Compare
-            verified = stored_hash == local_hash
+            verified = (stored_hash.lower() == root_str.lower() or
+                        stored_hash.lower() == merkle_root.lower())
 
             return BlockchainVerifyResult(
                 exists=True,
                 evidence_id=evidence_id,
                 stored_hash=stored_hash,
-                local_hash=local_hash,
+                local_hash=merkle_root,
                 verified=verified,
+                metadata=metadata,
             )
-
         except Exception as e:
             return BlockchainVerifyResult(
                 exists=False, evidence_id=0, stored_hash="",
-                local_hash=local_hash, verified=False, error=str(e),
+                local_hash=merkle_root, verified=False, error=str(e),
             )
 
     def get_explorer_url(self, tx_hash: str) -> str:
-        """Return Polygon Amoy explorer URL for a transaction hash."""
         return f"{_AMOY_EXPLORER}/tx/{tx_hash}"

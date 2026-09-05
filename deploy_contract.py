@@ -122,6 +122,16 @@ def deploy() -> None:
     print(f"  CONTRACT_ADDRESS={addr}")
     print("=" * 60)
 
+    # Automatically persist to .env
+    env_file = Path(".env")
+    if env_file.exists():
+        text = env_file.read_text()
+        if "CONTRACT_ADDRESS=" in text:
+            import re
+            new_text = re.sub(r"CONTRACT_ADDRESS=.*", f"CONTRACT_ADDRESS={addr}", text)
+            env_file.write_text(new_text)
+            print(f"✓ Automatically updated CONTRACT_ADDRESS in .env")
+
 
 if __name__ == "__main__":
     deploy()

@@ -53,6 +53,7 @@ tmp/
 cache/
 results/
 output/
+test_face.jpg
 
 # Secrets / wallets / keys
 *.pem

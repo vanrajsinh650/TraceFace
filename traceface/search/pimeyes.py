@@ -80,28 +80,43 @@ class PimEyesSearcher:
     async def search(self, image_bytes: bytes) -> SearchResult:
         """
         Upload a face image to PimEyes and retrieve matching URLs.
-
-        Args:
-            image_bytes: Raw JPEG/PNG bytes of the face image
-
-        Returns:
-            SearchResult with matched URLs
         """
+        import time
+        from datetime import datetime, timezone
+        from traceface.search.models import ProviderExecution
+
+        start_time = time.monotonic()
+        discovery_ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
         try:
             import httpx
         except ImportError:
+            latency_ms = int((time.monotonic() - start_time) * 1000)
+            exec_info = ProviderExecution(
+                provider="pimeyes", status="error", latency_ms=latency_ms,
+                matches_count=0, error="httpx not installed",
+            )
             return SearchResult(
                 success=False,
                 error="httpx not installed. Run: pip install httpx",
                 provider="pimeyes",
+                provider_runs={"pimeyes": exec_info},
+                total_latency_ms=latency_ms,
             )
 
         cookies = self._load_cookies()
         if not cookies:
+            latency_ms = int((time.monotonic() - start_time) * 1000)
+            exec_info = ProviderExecution(
+                provider="pimeyes", status="skipped", latency_ms=latency_ms,
+                matches_count=0, error="PimEyes cookies not configured",
+            )
             return SearchResult(
                 success=False,
                 error="PimEyes cookies not configured. Add pimeyes_cookies.json.",
                 provider="pimeyes",
+                provider_runs={"pimeyes": exec_info},
+                total_latency_ms=latency_ms,
             )
 
         # Rotate landscape images to portrait (helps face detection)
@@ -115,18 +130,44 @@ class PimEyesSearcher:
                 headers=_HEADERS,
                 follow_redirects=True,
             ) as client:
-                return await self._execute_search(client, image_bytes)
+                res = await self._execute_search(client, image_bytes)
+                latency_ms = int((time.monotonic() - start_time) * 1000)
+                status = "success" if res.matches else ("empty" if res.success else "error")
+                exec_info = ProviderExecution(
+                    provider="pimeyes",
+                    status=status,
+                    latency_ms=latency_ms,
+                    matches_count=len(res.matches),
+                    error=res.error,
+                )
+                res.provider_runs = {"pimeyes": exec_info}
+                res.total_latency_ms = latency_ms
+                return res
         except httpx.TimeoutException as e:
+            latency_ms = int((time.monotonic() - start_time) * 1000)
+            exec_info = ProviderExecution(
+                provider="pimeyes", status="timeout", latency_ms=latency_ms,
+                matches_count=0, error=f"PimEyes request timed out: {e}",
+            )
             return SearchResult(
                 success=False,
                 error=f"PimEyes request timed out: {e}",
                 provider="pimeyes",
+                provider_runs={"pimeyes": exec_info},
+                total_latency_ms=latency_ms,
             )
         except Exception as e:
+            latency_ms = int((time.monotonic() - start_time) * 1000)
+            exec_info = ProviderExecution(
+                provider="pimeyes", status="error", latency_ms=latency_ms,
+                matches_count=0, error=str(e),
+            )
             return SearchResult(
                 success=False,
                 error=f"PimEyes search failed: {e}",
                 provider="pimeyes",
+                provider_runs={"pimeyes": exec_info},
+                total_latency_ms=latency_ms,
             )
 
     async def _execute_search(self, client, image_bytes: bytes) -> SearchResult:
