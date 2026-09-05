@@ -5,8 +5,11 @@ TraceFace — Face Discovery, Evidence Fusion & Cryptographic Ledger
 HH Goa 2026 Task 3: Face Identification & Blockchain Verification
 
 Usage:
-    # Full Discovery & Anchoring Pipeline:
+    # Full Discovery & Anchoring Pipeline (LIVE MODE):
     python main.py --image path/to/face.jpg [--threshold 0.35] [--no-blockchain]
+
+    # Public Blockchain Proof Verification (PROOF MODE):
+    python main.py proof-verify fixtures/demo_evidence.json
 
     # Cryptographic Re-Verification:
     python main.py verify results/evidence_xxxx.json
@@ -21,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import os
 import sys
 import time
@@ -554,6 +558,106 @@ def cmd_proof(file_path: str) -> None:
     print(f"{'─' * 66}\n")
 
 
+def cmd_proof_verify(file_path: str) -> None:
+    """Verify a public proof fixture against Ethereum Sepolia (read-only, no wallet required)."""
+    _header("TRACEFACE PUBLIC PROOF VERIFICATION")
+    print(f"Evidence file: {file_path}\n")
+
+    # 1. Load raw JSON to extract proof metadata
+    raw_file = Path(file_path)
+    if not raw_file.exists():
+        _fail(f"File not found: {file_path}")
+        return
+    raw_data = json.loads(raw_file.read_text())
+    proof_meta = raw_data.get("_proof_metadata", {})
+
+    if proof_meta:
+        print(f"Network:       {proof_meta.get('network', 'unknown')}")
+        print(f"Chain ID:      {proof_meta.get('chain_id', 'unknown')}")
+        print(f"Contract:      {proof_meta.get('contract_address', 'unknown')}")
+        print(f"Anchor TX:     {proof_meta.get('anchor_tx', 'unknown')}")
+        print(f"Block:         {proof_meta.get('block_number', 'unknown')}")
+        print(f"Verification:  {proof_meta.get('verification_mode', 'unknown')}")
+        print()
+
+    # 2. Load evidence package via standard loader
+    package, pkg_raw = load_evidence_package(file_path)
+    stored_sha256 = raw_data.get("evidence_sha256", "")
+    stored_root = raw_data.get("merkle_root", package.merkle_root)
+
+    # 3. Recompute evidence SHA-256
+    recomputed_sha = package.sha256()
+    sha_match = recomputed_sha == stored_sha256
+
+    # 4. Recompute Merkle root
+    recomputed_result = package.recompute_merkle_root()
+    recomputed_root = recomputed_result[0] if isinstance(recomputed_result, tuple) else recomputed_result
+    root_match = recomputed_root == stored_root
+
+    # 5. Verify inclusion proof
+    inclusion_valid = False
+    if package.matched_inclusion_proof:
+        proof_data = package.matched_inclusion_proof
+        steps = [ProofStep(s["sibling_hash"], s["position"]) for s in proof_data["audit_path"]]
+        proof = MerkleInclusionProof(
+            leaf_id=proof_data["leaf_id"],
+            leaf_hash=proof_data["leaf_hash"],
+            merkle_root=recomputed_root,
+            leaf_index=proof_data["leaf_index"],
+            audit_path=steps,
+        )
+        inclusion_valid = proof.verify()
+
+    # 6. Query Ethereum Sepolia (read-only — no PRIVATE_KEY needed)
+    on_chain_root = None
+    blockchain_found = False
+    blockchain_error = None
+    contract_addr = proof_meta.get("contract_address", os.environ.get("CONTRACT_ADDRESS", ""))
+    try:
+        client = BlockchainClient(contract_address=contract_addr)
+        result = client.verify(recomputed_root)
+        if result.verified:
+            blockchain_found = True
+            on_chain_root = f"0x{recomputed_root}"
+    except Exception as e:
+        blockchain_error = str(e)
+
+    # 7. Print results
+    print(f"Stored Merkle Root:     {stored_root}")
+    print(f"Recomputed Merkle Root: {recomputed_root}")
+    if on_chain_root:
+        print(f"On-Chain Merkle Root:   {on_chain_root}")
+    print(f"Evidence SHA-256:       {'MATCH' if sha_match else 'MISMATCH'}")
+    print(f"Merkle Root:            {'MATCH' if root_match else 'MISMATCH'}")
+    print(f"Merkle Inclusion Proof: {'VALID' if inclusion_valid else 'INVALID'}")
+
+    if blockchain_found:
+        print(f"On-Chain Commitment:    FOUND")
+    elif blockchain_error:
+        print(f"On-Chain Commitment:    UNAVAILABLE ({blockchain_error})")
+    else:
+        print(f"On-Chain Commitment:    NOT FOUND")
+
+    # 8. Final verdict
+    all_crypto_valid = sha_match and root_match and inclusion_valid
+    print(f"\nFinal Result:")
+    if all_crypto_valid and blockchain_found:
+        print("  ✅ VERIFIED — PUBLIC PROOF AUTHENTICATED")
+        print("     All cryptographic commitments recomputed and verified on Ethereum Sepolia.")
+    elif all_crypto_valid:
+        print("  ⚠️  CRYPTOGRAPHICALLY VALID — blockchain access unavailable")
+        print("     All local cryptographic checks passed but on-chain verification could not be performed.")
+    else:
+        print("  ❌ VERIFICATION FAILED")
+        if not sha_match:
+            print("     Evidence SHA-256 does not match.")
+        if not root_match:
+            print("     Merkle root does not match.")
+        if not inclusion_valid:
+            print("     Inclusion proof is invalid.")
+    print(f"{'─' * 66}\n")
+
+
 # ─────────────────────────── CLI Entrypoint ─────────────────────────────────
 
 def main() -> None:
@@ -592,6 +696,12 @@ def main() -> None:
     proof_parser = subparsers.add_parser("proof", help="Inspect and verify Merkle inclusion proof")
     proof_parser.add_argument("evidence_file", help="Path to results/evidence_xxxx.json")
 
+    proof_verify_parser = subparsers.add_parser(
+        "proof-verify",
+        help="Verify a public proof fixture against Ethereum Sepolia (read-only, no wallet required)"
+    )
+    proof_verify_parser.add_argument("evidence_file", help="Path to fixtures/demo_evidence.json")
+
     args = parser.parse_args()
 
     if args.command == "verify":
@@ -600,6 +710,8 @@ def main() -> None:
         cmd_tamper_demo(args.evidence_file)
     elif args.command == "proof":
         cmd_proof(args.evidence_file)
+    elif args.command == "proof-verify":
+        cmd_proof_verify(args.evidence_file)
     elif args.image:
         asyncio.run(run_pipeline(
             image_path=args.image,

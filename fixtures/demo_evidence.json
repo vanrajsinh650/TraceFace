@@ -1,0 +1,509 @@
+{
+  "_proof_metadata": {
+    "description": "Public blockchain proof fixture derived from real TraceFace evidence. This file enables deterministic verification of the exact Ethereum Sepolia commitment without requiring private keys, funded wallets, or live search providers.",
+    "network": "Ethereum Sepolia",
+    "chain_id": 11155111,
+    "contract_address": "0x57306beBD4A3aFdec95b32fF39f9046aA338e8A2",
+    "anchor_tx": "0x93b1dfce859dbb19e21a629196f66e40cfa0803b45da63a700cf9d6ad349d899",
+    "block_number": 11639954,
+    "deployer_address": "0x0Ab3609B9538e752EF00Fa3747389daA466A9F9c",
+    "fixture_version": "1.0",
+    "requires_private_key": false,
+    "verification_mode": "read-only"
+  },
+  "evidence_package": {
+    "candidate_count": 3,
+    "candidates": [
+      {
+        "candidate_id": "candidate_02",
+        "canonical_url": "https://fb.ru/post/movies/2015/11/2/2589",
+        "candidate_faces_checked": 6,
+        "evidence_confidence": 83.99,
+        "face_similarity_score": 0.725815,
+        "image_sha256": "a47948ca0fa12bf2c175fdea5450d861f87116f5f6d1929e5989c3cd3b964e5e",
+        "image_url": "https://avatars.mds.yandex.net/i?id=711a7639bb62f9be30f7f3329a92d9bcb9da4829-12421933-images-thumbs&n=13&w=296&h=180",
+        "margin": 0.591121,
+        "perceptual_algorithm": "dhash-64",
+        "perceptual_hash": "8e87a44c69530f2f",
+        "person_name": null,
+        "providers": [
+          "yandex"
+        ],
+        "runner_up_score": 0.134694,
+        "source_domain": "fb.ru",
+        "title": "19 \u0436\u0438\u0437\u043d\u0435\u043d\u043d\u044b\u0445 \u0443\u0440\u043e\u043a\u043e\u0432 \u043e\u0442 \u0441\u0435\u0440\u0438\u0430\u043b\u0430 \"\u0414\u0440\u0443\u0437\u044c\u044f\"",
+        "verification_status": "MATCH"
+      },
+      {
+        "candidate_id": "candidate_03",
+        "canonical_url": "https://fb.ru/post/psychology/2019/2/20/60939",
+        "candidate_faces_checked": 6,
+        "evidence_confidence": 84.59,
+        "face_similarity_score": 0.735424,
+        "image_sha256": "4f8aa924be8dcfcff5da12d45c16313360fa7beb383bbec5a3f0b827ad04aa79",
+        "image_url": "https://avatars.mds.yandex.net/i?id=6e3c6c00116534ce056f72d2973097f6d0f08bd6-4120868-images-thumbs&n=13&w=296&h=180",
+        "margin": 0.633601,
+        "perceptual_algorithm": "dhash-64",
+        "perceptual_hash": "cec694e46c0b2727",
+        "person_name": null,
+        "providers": [
+          "yandex"
+        ],
+        "runner_up_score": 0.101823,
+        "source_domain": "fb.ru",
+        "title": "\u041b\u0443\u0447\u0448\u0438\u0439 \u0441\u043f\u043e\u0441\u043e\u0431 \u0441\u0442\u0430\u0442\u044c \u0434\u0443\u0448\u043e\u0439 \u043a\u043e\u043c\u043f\u0430\u043d\u0438\u0438 - \u0440\u0430\u0441\u0441\u043a\u0430\u0437\u044b\u0432\u0430\u0442\u044c \u0438\u0437\u0432\u0435\u0441\u0442\u043d\u044b\u0435 \u0438\u0441\u0442\u043e\u0440\u0438\u0438",
+        "verification_status": "MATCH"
+      },
+      {
+        "candidate_id": "candidate_01",
+        "canonical_url": "https://danielaityroblox.serv00.net/https-www.wallpaperbetter.com/pt/hd-wallpaper-pfzkj",
+        "candidate_faces_checked": 6,
+        "evidence_confidence": 79.95,
+        "face_similarity_score": 0.661247,
+        "image_sha256": "7f51dd809fa63ffb0362b778374b4d89fc7260d308fd8806024bbcb79a34b457",
+        "image_url": "https://avatars.mds.yandex.net/i?id=ea50c372b0676b5482b8806195cd07c7d6ae6722-12588502-images-thumbs&n=13&w=296&h=180",
+        "margin": 0.572457,
+        "perceptual_algorithm": "dhash-64",
+        "perceptual_hash": "4c47556c698a8786",
+        "person_name": null,
+        "providers": [
+          "yandex"
+        ],
+        "runner_up_score": 0.08879,
+        "source_domain": "danielaityroblox.serv00.net",
+        "title": "Tr\u00eas saias pretas, vermelhas e roxas das mulheres, olhar, o filme, corda, HD papel de parede Wallpaperbetter",
+        "verification_status": "MATCH"
+      }
+    ],
+    "created_at": "2026-09-05T11:05:17Z",
+    "evidence_confidence": {
+      "total_score": 80.99,
+      "rating": "VERY_STRONG",
+      "components": [
+        {
+          "name": "face_similarity",
+          "points": 43.49,
+          "max_points": 45.0,
+          "raw_value": "0.7258 (threshold: 0.35)",
+          "assessment": "High match"
+        },
+        {
+          "name": "runner_up_margin",
+          "points": 18.0,
+          "max_points": 20.0,
+          "raw_value": "isolated_face",
+          "assessment": "Single isolated face in candidate image"
+        },
+        {
+          "name": "provider_agreement",
+          "points": 6.0,
+          "max_points": 15.0,
+          "raw_value": "1 providers (yandex)",
+          "assessment": "Discovered by 1 engine (yandex)"
+        },
+        {
+          "name": "source_quality",
+          "points": 6.5,
+          "max_points": 10.0,
+          "raw_value": "fb.ru",
+          "assessment": "Public web domain (fb.ru)"
+        },
+        {
+          "name": "image_fidelity",
+          "points": 7.0,
+          "max_points": 10.0,
+          "raw_value": "valid_bytes",
+          "assessment": "Standard candidate image"
+        }
+      ]
+    },
+    "evidence_graph": {
+      "investigation_id": "inv_20260905_110414_47f682e9",
+      "node_count": 16,
+      "edge_count": 19,
+      "nodes": [
+        {
+          "id": "candidate_01",
+          "type": "candidate",
+          "label": "Candidate candidate_01",
+          "properties": {
+            "canonical_url": "https://danielaityroblox.serv00.net/https-www.wallpaperbetter.com/pt/hd-wallpaper-pfzkj",
+            "source_domain": "danielaityroblox.serv00.net",
+            "providers": [
+              "yandex"
+            ]
+          }
+        },
+        {
+          "id": "candidate_02",
+          "type": "candidate",
+          "label": "Candidate candidate_02",
+          "properties": {
+            "canonical_url": "https://fb.ru/post/movies/2015/11/2/2589",
+            "source_domain": "fb.ru",
+            "providers": [
+              "yandex"
+            ]
+          }
+        },
+        {
+          "id": "candidate_03",
+          "type": "candidate",
+          "label": "Candidate candidate_03",
+          "properties": {
+            "canonical_url": "https://fb.ru/post/psychology/2019/2/20/60939",
+            "source_domain": "fb.ru",
+            "providers": [
+              "yandex"
+            ]
+          }
+        },
+        {
+          "id": "face_query_primary",
+          "type": "face",
+          "label": "Extracted Subject Face",
+          "properties": {
+            "bbox": [
+              903,
+              62,
+              1013,
+              205
+            ],
+            "confidence": 0.8714,
+            "model": "buffalo_l_arcface"
+          }
+        },
+        {
+          "id": "inv_20260905_110414_47f682e9",
+          "type": "investigation",
+          "label": "Investigation inv_20260905_110414_47f682e9",
+          "properties": {
+            "schema_version": "2.0"
+          }
+        },
+        {
+          "id": "package_inv_20260905",
+          "type": "evidence_package",
+          "label": "Cryptographic Evidence Package",
+          "properties": {
+            "package_id": "inv_20260905_110414_47f682e9"
+          }
+        },
+        {
+          "id": "page_candidate_01",
+          "type": "source_page",
+          "label": "danielaityroblox.serv00.net",
+          "properties": {
+            "url": "https://danielaityroblox.serv00.net/https-www.wallpaperbetter.com/pt/hd-wallpaper-pfzkj"
+          }
+        },
+        {
+          "id": "page_candidate_02",
+          "type": "source_page",
+          "label": "fb.ru",
+          "properties": {
+            "url": "https://fb.ru/post/movies/2015/11/2/2589"
+          }
+        },
+        {
+          "id": "page_candidate_03",
+          "type": "source_page",
+          "label": "fb.ru",
+          "properties": {
+            "url": "https://fb.ru/post/psychology/2019/2/20/60939"
+          }
+        },
+        {
+          "id": "provider_bing",
+          "type": "provider",
+          "label": "Search Engine: bing",
+          "properties": {
+            "status": "error",
+            "latency_ms": 5816
+          }
+        },
+        {
+          "id": "provider_google",
+          "type": "provider",
+          "label": "Search Engine: google",
+          "properties": {
+            "status": "empty",
+            "latency_ms": 4792
+          }
+        },
+        {
+          "id": "provider_pimeyes",
+          "type": "provider",
+          "label": "Search Engine: pimeyes",
+          "properties": {
+            "status": "skipped",
+            "latency_ms": 0
+          }
+        },
+        {
+          "id": "provider_yandex",
+          "type": "provider",
+          "label": "Search Engine: yandex",
+          "properties": {
+            "status": "success",
+            "latency_ms": 7010
+          }
+        },
+        {
+          "id": "query_47f682e945b6",
+          "type": "query_image",
+          "label": "Input Face Image",
+          "properties": {
+            "sha256": "47f682e945b659f93a9e490b9c9c4a2a864abe64dace9e1a2893845ddfd69489"
+          }
+        },
+        {
+          "id": "search_run_inv_2026",
+          "type": "search",
+          "label": "Parallel Multi-Provider Search",
+          "properties": {
+            "provider_count": 4
+          }
+        },
+        {
+          "id": "verification_candidate_02",
+          "type": "verification",
+          "label": "ArcFace Cosine Verification",
+          "properties": {
+            "best_score": 0.725814700126648,
+            "threshold": 0.35,
+            "margin": null,
+            "passed": true
+          }
+        }
+      ],
+      "edges": [
+        {
+          "source": "candidate_01",
+          "target": "page_candidate_01",
+          "relation": "originates_from",
+          "properties": {}
+        },
+        {
+          "source": "candidate_02",
+          "target": "page_candidate_02",
+          "relation": "originates_from",
+          "properties": {}
+        },
+        {
+          "source": "candidate_02",
+          "target": "verification_candidate_02",
+          "relation": "subject_of",
+          "properties": {}
+        },
+        {
+          "source": "candidate_03",
+          "target": "page_candidate_03",
+          "relation": "originates_from",
+          "properties": {}
+        },
+        {
+          "source": "face_query_primary",
+          "target": "search_run_inv_2026",
+          "relation": "searched_with",
+          "properties": {}
+        },
+        {
+          "source": "inv_20260905_110414_47f682e9",
+          "target": "package_inv_20260905",
+          "relation": "committed_in",
+          "properties": {}
+        },
+        {
+          "source": "inv_20260905_110414_47f682e9",
+          "target": "query_47f682e945b6",
+          "relation": "investigated_with",
+          "properties": {}
+        },
+        {
+          "source": "provider_yandex",
+          "target": "candidate_01",
+          "relation": "contributed",
+          "properties": {}
+        },
+        {
+          "source": "provider_yandex",
+          "target": "candidate_02",
+          "relation": "contributed",
+          "properties": {}
+        },
+        {
+          "source": "provider_yandex",
+          "target": "candidate_03",
+          "relation": "contributed",
+          "properties": {}
+        },
+        {
+          "source": "query_47f682e945b6",
+          "target": "face_query_primary",
+          "relation": "contains_face",
+          "properties": {}
+        },
+        {
+          "source": "search_run_inv_2026",
+          "target": "candidate_01",
+          "relation": "discovered",
+          "properties": {}
+        },
+        {
+          "source": "search_run_inv_2026",
+          "target": "candidate_02",
+          "relation": "discovered",
+          "properties": {}
+        },
+        {
+          "source": "search_run_inv_2026",
+          "target": "candidate_03",
+          "relation": "discovered",
+          "properties": {}
+        },
+        {
+          "source": "search_run_inv_2026",
+          "target": "provider_bing",
+          "relation": "executed_by",
+          "properties": {}
+        },
+        {
+          "source": "search_run_inv_2026",
+          "target": "provider_google",
+          "relation": "executed_by",
+          "properties": {}
+        },
+        {
+          "source": "search_run_inv_2026",
+          "target": "provider_pimeyes",
+          "relation": "executed_by",
+          "properties": {}
+        },
+        {
+          "source": "search_run_inv_2026",
+          "target": "provider_yandex",
+          "relation": "executed_by",
+          "properties": {}
+        },
+        {
+          "source": "verification_candidate_02",
+          "target": "face_query_primary",
+          "relation": "verified_against",
+          "properties": {}
+        }
+      ]
+    },
+    "investigation_id": "inv_20260905_110414_47f682e9",
+    "matched_candidate": {
+      "evidence_confidence": 83.99,
+      "leaf_hash": "db68b206c819a754cefc5817c401eb9164fa33f5bd339ebec1f8d80b20657998",
+      "matched_candidate_id": "candidate_02",
+      "matched_face_similarity": 0.725815,
+      "matched_image_perceptual_hash": "8e87a44c69530f2f",
+      "matched_image_sha256": "a47948ca0fa12bf2c175fdea5450d861f87116f5f6d1929e5989c3cd3b964e5e",
+      "matched_image_url": "https://avatars.mds.yandex.net/i?id=711a7639bb62f9be30f7f3329a92d9bcb9da4829-12421933-images-thumbs&n=13&w=296&h=180",
+      "matched_source_url": "https://fb.ru/post/movies/2015/11/2/2589",
+      "matched_verification_status": "MATCH",
+      "person_name": null,
+      "providers": [
+        "yandex"
+      ],
+      "source_domain": "fb.ru"
+    },
+    "matched_inclusion_proof": {
+      "leaf_id": "candidate_02",
+      "leaf_hash": "db68b206c819a754cefc5817c401eb9164fa33f5bd339ebec1f8d80b20657998",
+      "merkle_root": "46cb0e2ad6f227cb4766a3af3b817720095ec18e876824f1be2950c9504c7aec",
+      "leaf_index": 1,
+      "audit_path": [
+        {
+          "sibling_hash": "76334fb59088b8c9ab21d698fb09cfb237ceab9676cf21455b3f6303023f80db",
+          "position": "left"
+        },
+        {
+          "sibling_hash": "499bcb1226013df9050802dbd8d390c305b3f3d0dca11620c699352424c9177a",
+          "position": "right"
+        }
+      ]
+    },
+    "merkle_leaf_count": 4,
+    "merkle_leaves": [
+      {
+        "leaf_id": "candidate_01",
+        "leaf_type": "candidate",
+        "leaf_hash": "76334fb59088b8c9ab21d698fb09cfb237ceab9676cf21455b3f6303023f80db"
+      },
+      {
+        "leaf_id": "candidate_02",
+        "leaf_type": "candidate",
+        "leaf_hash": "db68b206c819a754cefc5817c401eb9164fa33f5bd339ebec1f8d80b20657998"
+      },
+      {
+        "leaf_id": "candidate_03",
+        "leaf_type": "candidate",
+        "leaf_hash": "71da6d1aa71c6459035c19d2177c897152f6102817cbeeadcf4528107e5c6988"
+      },
+      {
+        "leaf_id": "leaf_00_header",
+        "leaf_type": "investigation_header",
+        "leaf_hash": "3d9df6c84f35759233e4e57d177c345d5078e541b63f4dcfccf69ca991a0a6c9"
+      }
+    ],
+    "merkle_root": "46cb0e2ad6f227cb4766a3af3b817720095ec18e876824f1be2950c9504c7aec",
+    "provider_runs": {
+      "yandex": {
+        "status": "success",
+        "latency_ms": 7010,
+        "matches_count": 20,
+        "error": null
+      },
+      "google": {
+        "status": "empty",
+        "latency_ms": 4792,
+        "matches_count": 0,
+        "error": null
+      },
+      "bing": {
+        "status": "error",
+        "latency_ms": 5816,
+        "matches_count": 0,
+        "error": "BCID not found on page."
+      },
+      "pimeyes": {
+        "status": "skipped",
+        "latency_ms": 0,
+        "matches_count": 0,
+        "error": "Cookies not configured"
+      }
+    },
+    "query_info": {
+      "embedding_dimension": 512,
+      "model_name": "buffalo_l",
+      "query_face_bbox": [
+        903,
+        62,
+        1013,
+        205
+      ],
+      "query_face_confidence": 0.871408,
+      "query_image_sha256": "47f682e945b659f93a9e490b9c9c4a2a864abe64dace9e1a2893845ddfd69489",
+      "query_perceptual_hash": "8e87a44c69130f0f"
+    },
+    "schema_version": "2.0",
+    "timings_ms": {
+      "face_detection_ms": 3141,
+      "query_fingerprint_ms": 16,
+      "search_total_ms": 7012,
+      "provider_yandex_ms": 7010,
+      "provider_google_ms": 4792,
+      "provider_bing_ms": 5816,
+      "provider_pimeyes_ms": 0,
+      "verification_ms": 52867,
+      "graph_build_ms": 0,
+      "merkle_build_ms": 8
+    }
+  },
+  "evidence_sha256": "3eb65986408dfeb4680dba0e56688c7d39ab6f07c2b1be50aacc50b2d11c720c",
+  "merkle_root": "46cb0e2ad6f227cb4766a3af3b817720095ec18e876824f1be2950c9504c7aec"
+}
