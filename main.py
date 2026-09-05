@@ -353,7 +353,7 @@ async def run_pipeline(
     _ok(f"Evidence package persisted: {evidence_path}")
 
     # ── Step 7: Blockchain Anchoring & Integrity Verification ───────────────
-    _step(7, TOTAL_STEPS, "Anchoring Merkle Root & Discovered Post Fingerprint to Polygon Amoy...")
+    _step(7, TOTAL_STEPS, "Anchoring Merkle Root & Discovered Post Fingerprint to Ethereum Sepolia...")
     t_bc = time.monotonic()
 
     print(f"  • Matched Post URL:    {matched_candidate_record.matched_source_url}")
@@ -374,8 +374,8 @@ async def run_pipeline(
         client = BlockchainClient()
         wallet = client.get_wallet_address()
         if not wallet or not client.is_configured:
-            _fail("Polygon Amoy configuration missing or incomplete (.env)")
-            blockchain_status = "CONFIG_MISSING (Check .env for RPC, PRIVATE_KEY, CONTRACT_ADDRESS)"
+            _fail("Ethereum Sepolia configuration missing or incomplete (.env)")
+            blockchain_status = "CONFIG_MISSING (Check .env for SEPOLIA_RPC_URL, PRIVATE_KEY, CONTRACT_ADDRESS)"
         else:
             _ok(f"Deployer Wallet: {wallet}")
             metadata = {
@@ -391,7 +391,7 @@ async def run_pipeline(
                 "timestamp": package.created_at,
             }
 
-            print("  • Submitting Merkle root transaction to Polygon Amoy...")
+            print("  • Submitting Merkle root transaction to Ethereum Sepolia...")
             anchor = client.anchor(package.merkle_root, metadata)
 
             if anchor.success:
@@ -437,7 +437,7 @@ async def run_pipeline(
     print(f"  Merkle Evidence Root:{package.merkle_root}")
     print(f"  Evidence File:       {evidence_path}")
     if tx_hash:
-        print(f"  Polygon Amoy Tx:     {tx_hash}")
+        print(f"  Ethereum Sepolia Tx: {tx_hash}")
         print(f"  Block Number:        {block_num}")
     print(f"  Blockchain Status:   {blockchain_status}")
 
@@ -472,7 +472,7 @@ def cmd_verify(file_path: str) -> None:
     print(f"Inclusion Proof:   {'✓ VALID' if report.inclusion_proof_valid else '✗ INVALID'}")
 
     if report.blockchain_anchored:
-        print(f"On-Chain Anchor:   ✓ FOUND ON POLYGON AMOY ({report.on_chain_root})")
+        print(f"On-Chain Anchor:   ✓ FOUND ON ETHEREUM SEPOLIA ({report.on_chain_root})")
     elif report.blockchain_error:
         print(f"On-Chain Anchor:   ○ {report.blockchain_error}")
 
@@ -571,7 +571,7 @@ def main() -> None:
     parser.add_argument(
         "--no-blockchain",
         action="store_true",
-        help="Skip Polygon Amoy blockchain anchoring"
+        help="Skip Ethereum Sepolia blockchain anchoring"
     )
     parser.add_argument(
         "--max-candidates",

@@ -1,10 +1,10 @@
 """
-TraceFace — Blockchain Client & Cryptographic Re-Verifier (Polygon Amoy)
-=======================================================================
+TraceFace — Blockchain Client & Cryptographic Re-Verifier (Ethereum Sepolia)
+=============================================================================
 Ported and evolved from: blockchain-evidence/services/blockchain/blockchainService.js
 Original source: https://github.com/Gooichand/blockchain-evidence (Apache 2.0)
 
-Interacts with EvidenceStorage.sol on Polygon Amoy testnet.
+Interacts with EvidenceStorage.sol on Ethereum Sepolia testnet.
 Anchors the deterministic Merkle Evidence Root and metadata commitments.
 Performs independent re-verification and tamper detection.
 """
@@ -58,8 +58,8 @@ _ABI = [
     },
 ]
 
-_AMOY_CHAIN_ID = 80002
-_AMOY_EXPLORER = "https://amoy.polygonscan.com"
+_SEPOLIA_CHAIN_ID = 11155111
+_SEPOLIA_EXPLORER = "https://sepolia.etherscan.io"
 
 
 class BlockchainAnchorResult:
@@ -85,7 +85,7 @@ class BlockchainAnchorResult:
 
     def explorer_url(self) -> str:
         if self.tx_hash:
-            return f"{_AMOY_EXPLORER}/tx/{self.tx_hash}"
+            return f"{_SEPOLIA_EXPLORER}/tx/{self.tx_hash}"
         return ""
 
 
@@ -123,7 +123,7 @@ class BlockchainVerifyResult:
 
 class BlockchainClient:
     """
-    Polygon Amoy client for EvidenceStorage contract.
+    Ethereum Sepolia client for EvidenceStorage contract.
     """
 
     def __init__(
@@ -132,7 +132,11 @@ class BlockchainClient:
         private_key: Optional[str] = None,
         contract_address: Optional[str] = None,
     ) -> None:
-        self._rpc_url = rpc_url or os.environ.get("POLYGON_RPC_URL", "")
+        self._rpc_url = (
+            rpc_url
+            or os.environ.get("SEPOLIA_RPC_URL", "")
+            or os.environ.get("POLYGON_RPC_URL", "")
+        )
         self._private_key = private_key or os.environ.get("PRIVATE_KEY", "")
         self._contract_address = contract_address or os.environ.get("CONTRACT_ADDRESS", "")
         self._w3 = None
@@ -146,7 +150,7 @@ class BlockchainClient:
     def _check_config(self) -> Optional[str]:
         missing = []
         if not self._rpc_url:
-            missing.append("POLYGON_RPC_URL")
+            missing.append("SEPOLIA_RPC_URL")
         if not self._private_key:
             missing.append("PRIVATE_KEY")
         if not self._contract_address:
@@ -156,9 +160,10 @@ class BlockchainClient:
         return None
 
     _FALLBACK_RPCS = [
-        "https://polygon-amoy-bor-rpc.publicnode.com",
-        "https://rpc.ankr.com/polygon_amoy",
-        "https://rpc-amoy.polygon.technology",
+        "https://ethereum-sepolia-rpc.publicnode.com",
+        "https://rpc.sepolia.org",
+        "https://1rpc.io/sepolia",
+        "https://sepolia.gateway.tenderly.co",
     ]
 
     def _connect(self) -> Optional[str]:
@@ -171,7 +176,6 @@ class BlockchainClient:
 
         try:
             from web3 import Web3
-            from web3.middleware import ExtraDataToPOAMiddleware
         except ImportError:
             return "web3 not installed. Run: pip install web3"
 
@@ -181,9 +185,16 @@ class BlockchainClient:
         for endpoint in endpoints:
             try:
                 w3 = Web3(Web3.HTTPProvider(endpoint, request_kwargs={"timeout": 12}))
-                w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
                 if not w3.is_connected():
                     last_error = f"Cannot connect to RPC: {endpoint}"
+                    continue
+
+                actual_chain_id = w3.eth.chain_id
+                if actual_chain_id != _SEPOLIA_CHAIN_ID:
+                    last_error = (
+                        f"Chain ID mismatch at {endpoint}: "
+                        f"expected {_SEPOLIA_CHAIN_ID} (Sepolia), got {actual_chain_id}"
+                    )
                     continue
 
                 pk = self._private_key
@@ -201,7 +212,7 @@ class BlockchainClient:
                 last_error = str(e)
                 continue
 
-        return f"All RPC connections failed: {last_error}"
+        return f"All Sepolia RPC connections failed: {last_error}"
 
     def get_wallet_address(self) -> Optional[str]:
         err = self._connect()
@@ -211,7 +222,7 @@ class BlockchainClient:
 
     def anchor(self, merkle_root: str, metadata: dict[str, Any]) -> BlockchainAnchorResult:
         """
-        Anchor the Merkle root and metadata commitment on Polygon Amoy.
+        Anchor the Merkle root and metadata commitment on Ethereum Sepolia.
         """
         err = self._connect()
         if err:
@@ -229,7 +240,7 @@ class BlockchainClient:
                 return BlockchainAnchorResult(
                     tx_hash="", block_number=0, evidence_id=0, gas_used=0,
                     success=False, merkle_root=merkle_root,
-                    error=f"Wallet {self._account.address} has 0 MATIC. Fund from https://faucet.polygon.technology",
+                    error=f"Wallet {self._account.address} has 0 Sepolia ETH. Fund from https://sepoliafaucet.com",
                 )
 
             nonce = self._w3.eth.get_transaction_count(self._account.address)
@@ -237,14 +248,16 @@ class BlockchainClient:
                 root_str, metadata_json
             ).estimate_gas({"from": self._account.address})
 
+            gas_price = self._w3.eth.gas_price
+
             txn = self._contract.functions.storeEvidence(
                 root_str, metadata_json
             ).build_transaction({
                 "from": self._account.address,
                 "nonce": nonce,
-                "gas": int(gas_estimate * 1.25),
-                "gasPrice": self._w3.eth.gas_price,
-                "chainId": _AMOY_CHAIN_ID,
+                "gas": int(gas_estimate * 1.3),
+                "gasPrice": int(gas_price * 1.25),
+                "chainId": _SEPOLIA_CHAIN_ID,
             })
 
             signed = self._account.sign_transaction(txn)
@@ -290,7 +303,7 @@ class BlockchainClient:
 
     def verify(self, merkle_root: str) -> BlockchainVerifyResult:
         """
-        Query smart contract to verify if a Merkle root exists on Polygon Amoy.
+        Query smart contract to verify if a Merkle root exists on Ethereum Sepolia.
         """
         err = self._connect()
         if err:
@@ -346,4 +359,4 @@ class BlockchainClient:
             )
 
     def get_explorer_url(self, tx_hash: str) -> str:
-        return f"{_AMOY_EXPLORER}/tx/{tx_hash}"
+        return f"{_SEPOLIA_EXPLORER}/tx/{tx_hash}"

@@ -4,7 +4,7 @@
 
 **HH Goa 2026 — Task 3: Face Discovery, Evidence Fusion & Cryptographic Ledger**
 
-Most face search pipelines simply find a matching candidate and push an arbitrary hash to a blockchain. TraceFace preserves the complete chain of investigative provenance: concurrent multi-engine discovery, provider corroboration, candidate normalization, independent multi-face ArcFace verification, explainable multi-signal confidence scoring, and a deterministic Merkle Evidence Tree anchored to Polygon Amoy.
+Most face search pipelines simply find a matching candidate and push an arbitrary hash to a blockchain. TraceFace preserves the complete chain of investigative provenance: concurrent multi-engine discovery, provider corroboration, candidate normalization, independent multi-face ArcFace verification, explainable multi-signal confidence scoring, and a deterministic Merkle Evidence Tree anchored to Ethereum Sepolia.
 
 ```text
                1. Multi-engine parallel discovery
@@ -48,7 +48,7 @@ flowchart TD
         M --> N[Candidate Inclusion Proof]
     end
 
-    M --> O[Polygon Amoy Blockchain Anchor]
+    M --> O[Ethereum Sepolia Blockchain Anchor]
     O --> P[Independent Re-Verification: VERIFIED / TAMPERED]
 ```
 
@@ -59,20 +59,20 @@ flowchart TD
 The hackathon requires recording the discovered post or its cryptographic fingerprint to the blockchain. TraceFace fulfills this through a hierarchical cryptographic commitment:
 
 ```text
-Matched Discovered Post (URL, Content, Image)
-       ↓
-Exact SHA-256 Fingerprint + Perceptual dHash
-       ↓
-Cryptographic Evidence Leaf (Leaf ID: candidate_xx)
-       ↓
-Deterministic RFC 6962 Merkle Tree
-       ↓
-Merkle Evidence Root (32-byte Hex Digest)
-       ↓
-Polygon Amoy Blockchain Anchor (EvidenceStorage.sol)
+Matched post
+     ↓
+SHA-256 / perceptual fingerprint
+     ↓
+evidence leaf
+     ↓
+Merkle root
+     ↓
+Ethereum Sepolia
+     ↓
+on-chain verification
 ```
 
-> **Key Guarantee**: The matched post's cryptographic fingerprint is explicitly included as a committed evidence leaf; the blockchain anchors the Merkle root representing the complete evidence set.
+> **"The matched post's cryptographic fingerprint is explicitly included as a committed evidence leaf; Ethereum Sepolia anchors the Merkle root representing the complete evidence set."**
 
 The smart contract record locks:
 - **Merkle Root**: Cryptographic commitment over all candidates and search provenance.
@@ -122,8 +122,8 @@ cp .env.example .env
 
 Configure `.env`:
 ```ini
-# Polygon Amoy Testnet
-POLYGON_RPC_URL=https://rpc-amoy.polygon.technology
+# Ethereum Sepolia Testnet (Chain ID: 11155111)
+SEPOLIA_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com
 PRIVATE_KEY=your_private_key_without_0x_prefix
 CONTRACT_ADDRESS=your_deployed_contract_address
 
@@ -172,9 +172,9 @@ python main.py proof results/evidence_<hash>.json
 
 For a 2-minute video presentation:
 
-1. **Start Discovery Pipeline**:
+1. **Start Discovery & Anchoring Pipeline**:
    ```bash
-   python main.py --image test_face.jpg --no-blockchain --max-candidates 3
+   python main.py --image test_face.jpg --max-candidates 3
    ```
    *Points to highlight*:
    - Face detected with buffalo_l, 512D ArcFace vector extracted.
@@ -183,19 +183,20 @@ For a 2-minute video presentation:
    - Candidate on public platform verified with high similarity (0.7258 >= 0.35).
    - Multi-signal evidence confidence score calculated: **81.0/100 (VERY_STRONG)**.
    - Merkle Evidence Root computed locking all candidates and investigation state.
+   - Real transaction broadcast to Ethereum Sepolia and confirmed on-chain.
 
-2. **Verify Cryptographic Commitment**:
+2. **Verify Cryptographic Commitment & On-Chain Root**:
    ```bash
-   python main.py verify results/evidence_b07d8c94ba61.json
+   python main.py verify results/evidence_475a7d04d37f.json
    ```
    *Shows*:
    - Local Merkle tree recomputed from raw candidate items.
-   - Audit path checked against root.
+   - On-chain root verified against Ethereum Sepolia smart contract.
    - Result: `✅ VERIFIED`.
 
 3. **Demonstrate Tamper Resistance**:
    ```bash
-   python main.py tamper-demo results/evidence_b07d8c94ba61.json
+   python main.py tamper-demo results/evidence_475a7d04d37f.json
    ```
    *Shows*:
    - Phase 1: Untouched original -> `✅ VERIFIED`.
@@ -204,7 +205,7 @@ For a 2-minute video presentation:
 
 4. **Verify Merkle Inclusion Proof**:
    ```bash
-   python main.py proof results/evidence_b07d8c94ba61.json
+   python main.py proof results/evidence_475a7d04d37f.json
    ```
    *Shows*:
    - Step-by-step cryptographic audit path.
@@ -256,24 +257,29 @@ Input image:   test_face.jpg (125 KB)
   ✓ Merkle Inclusion Proof verified for candidate_02 (path depth: 2)
   ✓ Evidence package persisted: results/evidence_b07d8c94ba61.json
 
-[7/7] Anchoring Merkle Root & Discovered Post Fingerprint to Polygon Amoy...
+[7/7] Anchoring Merkle Root & Discovered Post Fingerprint to Ethereum Sepolia...
   • Matched Post URL:    https://fb.ru/post/movies/2015/11/2/2589
-  • Post Image SHA-256:  a1b2c3...
+  • Post Image SHA-256:  a47948ca0fa12bf2c175fdea5450d861f87116f5f6d1929e5989c3cd3b964e5e
+  • Post Image dHash:    8e87a44c69530f2f
   • Evidence Leaf ID:    candidate_02 (locked inside Merkle Root)
-  • Committed Root:      50d44ed2c552be7cb490cd985d9480d4fa3e032ddf1c1b5a1a3b88250368c1c5
-  ✓ Anchored! Tx: 0x9b4a12...
-  ✓ Block: 1420912
-  ✓ Blockchain verification: VERIFIED
+  • Committed Root:      819f41a2ee8f12df5a283fd3fb8804c99bfe4155f6b8f4ce9f572a6675b7ea4e
+  ✓ Deployer Wallet:     0x0Ab3609B9538e752EF00Fa3747389daA466A9F9c
+  ✓ Transaction:         0xa29aeb47ec064f5d5981532f981d3081014e1c65bc76a092c659511594f38ad8
+  ✓ Confirmed in block:  11639100
+  ✓ Explorer:            https://sepolia.etherscan.io/tx/a29aeb47ec064f5d5981532f981d3081014e1c65bc76a092c659511594f38ad8
+  ✓ On-chain root:       0x819f41a2ee8f12df5a283fd3fb8804c99bfe4155f6b8f4ce9f572a6675b7ea4e
+  ✓ Blockchain verify:   VERIFIED
 
 ──────────────────────────────────────────────────────────────────
   STAGE PERFORMANCE & LATENCY OBSERVABILITY (MEASURED)
 ──────────────────────────────────────────────────────────────────
-  Face Detection:           4424 ms
-  Multi-Engine Search:      4637 ms
-  Candidate Verification:  13135 ms
+  Face Detection:           3987 ms
+  Multi-Engine Search:      6360 ms
+  Candidate Verification:  15783 ms
   Evidence Graph:              0 ms
-  Merkle Tree Build:          13 ms
-  Total Pipeline Latency:  22247 ms
+  Merkle Tree Build:          10 ms
+  Blockchain Anchor/Check: 21332 ms
+  Total Pipeline Latency:  47502 ms
 ──────────────────────────────────────────────────────────────────
 ```
 
@@ -282,8 +288,11 @@ Input image:   test_face.jpg (125 KB)
 ## Smart Contract Details
 
 - **Contract**: `contracts/EvidenceStorage.sol`
-- **Network**: Polygon Amoy Testnet (Chain ID: 80002)
-- **Explorer**: [amoy.polygonscan.com](https://amoy.polygonscan.com)
+- **Network**: Ethereum Sepolia Testnet (Chain ID: 11155111)
+- **Explorer**: [sepolia.etherscan.io](https://sepolia.etherscan.io)
+- **Deployed Address**: [`0x57306beBD4A3aFdec95b32fF39f9046aA338e8A2`](https://sepolia.etherscan.io/address/0x57306beBD4A3aFdec95b32fF39f9046aA338e8A2)
+- **Deployment Tx**: [`0x2ebc9f69bb71a4d417d244faa51f11643a3199bb1f89355a0ed2b6321e846611`](https://sepolia.etherscan.io/tx/0x2ebc9f69bb71a4d417d244faa51f11643a3199bb1f89355a0ed2b6321e846611) (Block: 11639090)
+- **TraceFace Anchor Tx**: [`0xa29aeb47ec064f5d5981532f981d3081014e1c65bc76a092c659511594f38ad8`](https://sepolia.etherscan.io/tx/a29aeb47ec064f5d5981532f981d3081014e1c65bc76a092c659511594f38ad8) (Block: 11639100)
 - **Functions**:
   - `storeEvidence(string _fileHash, string _metadata)`: Commits the Merkle Root and JSON metadata.
   - `verifyHash(string _fileHash)`: Queries if a root exists on-chain and returns evidence ID.
@@ -318,7 +327,7 @@ All 21 tests pass with zero warnings, covering:
 
 1. **Not Real-World Identity Certification**: Face embedding similarity measures mathematical feature distance between two images under specific lighting, pose, and resolution. It is not legal proof of personhood or real-world identity.
 2. **Search Engine False Positives/Negatives**: Public search engines (Google, Yandex, Bing) rely on visual similarity indexes and web crawls which may include lookalikes, stock images, or irrelevant results.
-3. **Integrity vs. Truth**: Anchoring a Merkle root to Polygon Amoy guarantees that the investigation evidence has not been tampered with since anchoring. It does **not** certify that the underlying online posts or claims are factually truthful.
+3. **Integrity vs. Truth**: Anchoring a Merkle root to Ethereum Sepolia guarantees that the investigation evidence has not been tampered with since anchoring. It does **not** certify that the underlying online posts or claims are factually truthful.
 4. **Credential Safety**: Private keys and API credentials must never be committed to source control. Use environment variables.
 5. **Intended Use**: TraceFace is an academic/hackathon proof-of-concept for transparent digital evidence ledgers.
 

@@ -5,7 +5,7 @@ Independently verifies local evidence against:
 1. Deterministic canonical leaf serialization
 2. Rebuilt Merkle binary tree root
 3. Matched candidate cryptographic inclusion proof
-4. Polygon Amoy blockchain record (when configured)
+4. Ethereum Sepolia blockchain record (when configured)
 
 Also provides non-destructive controlled tamper demonstration for live evaluation.
 """

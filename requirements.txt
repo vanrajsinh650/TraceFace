@@ -15,7 +15,7 @@ pyquery>=2.1.0
 cssselect>=1.5.0
 PicImageSearch>=3.8.0
 
-# Blockchain (Polygon Amoy via web3.py)
+# Blockchain (Ethereum Sepolia via web3.py)
 web3>=6.0.0
 
 # Environment / config
