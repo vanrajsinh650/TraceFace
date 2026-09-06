@@ -129,7 +129,7 @@ async def run_pipeline(
 
     detector = FaceDetector(det_thresh=0.5)
     if not detector.available:
-        _fail("InsightFace is unavailable. Install: pip install insightface onnxruntime")
+        _fail("InsightFace is unavailable. Run 'python main.py doctor' for detailed diagnostics.")
         sys.exit(1)
 
     detection = detector.detect(query_image_bytes)
@@ -568,7 +568,7 @@ def cmd_proof_verify(file_path: str) -> None:
     if not raw_file.exists():
         _fail(f"File not found: {file_path}")
         return
-    raw_data = json.loads(raw_file.read_text())
+    raw_data = json.loads(raw_file.read_text(encoding="utf-8"))
     proof_meta = raw_data.get("_proof_metadata", {})
 
     if proof_meta:
@@ -619,6 +619,8 @@ def cmd_proof_verify(file_path: str) -> None:
         if result.verified:
             blockchain_found = True
             on_chain_root = f"0x{recomputed_root}"
+        elif result.error:
+            blockchain_error = result.error
     except Exception as e:
         blockchain_error = str(e)
 
@@ -687,6 +689,10 @@ def main() -> None:
     # Subcommands
     subparsers = parser.add_subparsers(dest="command", help="TraceFace Subcommands")
 
+    # Doctor subcommand
+    doctor_parser = subparsers.add_parser("doctor", help="Run pre‑flight environment diagnostics")
+    doctor_parser.add_argument("--verbose", action="store_true", help="Show full traceback on failures")
+
     verify_parser = subparsers.add_parser("verify", help="Re-verify evidence file against Merkle root")
     verify_parser.add_argument("evidence_file", help="Path to results/evidence_xxxx.json")
 
@@ -704,7 +710,12 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    if args.command == "verify":
+    if args.command == "doctor":
+        # Run diagnostics
+        from traceface.diagnostics import run_doctor
+        exit_code = run_doctor(verbose=getattr(args, "verbose", False))
+        sys.exit(exit_code)
+    elif args.command == "verify":
         cmd_verify(args.evidence_file)
     elif args.command == "tamper-demo":
         cmd_tamper_demo(args.evidence_file)

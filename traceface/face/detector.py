@@ -159,10 +159,24 @@ class FaceDetector:
             DetectionResult with list of DetectedFace objects.
         """
         if not self.available:
-            return DetectionResult(
-                success=False,
-                error="InsightFace is not available. Install: pip install insightface onnxruntime"
-            )
+            # Provide detailed diagnostics instead of generic message
+            from traceface.diagnostics import check_import, check_onnx_providers, check_model_cache
+            missing = []
+            for pkg in ["insightface", "onnxruntime"]:
+                ok, msg = check_import(pkg)
+                if not ok:
+                    missing.append(msg)
+            cpu_ok, prov_msg, _ = check_onnx_providers()
+            if not cpu_ok:
+                missing.append(f"ONNX Runtime CPU provider missing: {prov_msg}")
+            cache_ok, cache_msg = check_model_cache()
+            if not cache_ok:
+                missing.append(cache_msg)
+            if missing:
+                detailed = "; ".join(missing)
+            else:
+                detailed = "Unknown initialization failure (run: python main.py doctor --verbose)"
+            return DetectionResult(success=False, error=f"InsightFace unavailable: {detailed}")
 
         # Decode image to numpy array (RGB)
         try:

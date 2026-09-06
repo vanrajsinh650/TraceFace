@@ -29,16 +29,17 @@ def deploy() -> None:
         print("ERROR: PRIVATE_KEY not set in .env")
         sys.exit(1)
 
-    # Load compiled contract
-    abi_path = Path("contracts/EvidenceStorage.abi.json")
-    bin_path = Path("contracts/EvidenceStorage.bin")
+    # Load compiled contract (relative to this script's directory)
+    _BASE_DIR = Path(__file__).resolve().parent
+    abi_path = _BASE_DIR / "contracts" / "EvidenceStorage.abi.json"
+    bin_path = _BASE_DIR / "contracts" / "EvidenceStorage.bin"
 
     if not abi_path.exists() or not bin_path.exists():
         print("ERROR: Compiled contract artifacts missing in contracts/")
         sys.exit(1)
 
-    abi = json.loads(abi_path.read_text())
-    bytecode = bin_path.read_text().strip()
+    abi = json.loads(abi_path.read_text(encoding="utf-8"))
+    bytecode = bin_path.read_text(encoding="utf-8").strip()
     if not bytecode.startswith("0x"):
         bytecode = "0x" + bytecode
 
@@ -140,13 +141,13 @@ def deploy() -> None:
     # Automatically persist to .env only after confirmation
     env_file = Path(".env")
     if env_file.exists():
-        text = env_file.read_text()
+        text = env_file.read_text(encoding="utf-8")
         if "CONTRACT_ADDRESS=" in text:
             import re
             new_text = re.sub(r"CONTRACT_ADDRESS=.*", f"CONTRACT_ADDRESS={addr}", text)
             if "SEPOLIA_RPC_URL=" not in new_text:
                 new_text = f"SEPOLIA_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com\n" + new_text
-            env_file.write_text(new_text)
+            env_file.write_text(new_text, encoding="utf-8")
             print("✓ Automatically updated CONTRACT_ADDRESS in .env")
 
 

@@ -175,7 +175,7 @@ class BlockchainClient:
         except ImportError:
             return "web3 not installed. Run: pip install web3"
 
-        endpoints = [self._rpc_url] + [e for e in self._FALLBACK_RPCS if e != self._rpc_url]
+        endpoints = [e for e in [self._rpc_url] + self._FALLBACK_RPCS if e]
         last_error = ""
 
         for endpoint in endpoints:
@@ -208,7 +208,55 @@ class BlockchainClient:
                 last_error = str(e)
                 continue
 
-        return f"All Sepolia RPC connections failed: {last_error}"
+        return f"Failed to connect to Ethereum Sepolia: {last_error}"
+
+    def _connect_readonly(self) -> Optional[str]:
+        """Connect for read-only operations (no PRIVATE_KEY required).
+
+        Only needs a contract address and a working RPC endpoint.
+        Uses public fallback RPCs if SEPOLIA_RPC_URL is not set.
+        """
+        if self._w3 is not None and self._contract is not None:
+            return None
+
+        if not self._contract_address:
+            return "Missing CONTRACT_ADDRESS for read-only verification"
+
+        try:
+            from web3 import Web3
+        except ImportError:
+            return "web3 not installed. Run: pip install web3"
+
+        endpoints = [e for e in [self._rpc_url] + self._FALLBACK_RPCS if e]
+        last_error = ""
+
+        for endpoint in endpoints:
+            try:
+                w3 = Web3(Web3.HTTPProvider(endpoint, request_kwargs={"timeout": 12}))
+                if not w3.is_connected():
+                    last_error = f"Cannot connect to RPC: {endpoint}"
+                    continue
+
+                actual_chain_id = w3.eth.chain_id
+                if actual_chain_id != _SEPOLIA_CHAIN_ID:
+                    last_error = (
+                        f"Chain ID mismatch at {endpoint}: "
+                        f"expected {_SEPOLIA_CHAIN_ID} (Sepolia), got {actual_chain_id}"
+                    )
+                    continue
+
+                checksum_addr = Web3.to_checksum_address(self._contract_address)
+                contract = w3.eth.contract(address=checksum_addr, abi=_ABI)
+
+                self._w3 = w3
+                self._contract = contract
+                # _account remains None — read-only mode
+                return None
+            except Exception as e:
+                last_error = str(e)
+                continue
+
+        return f"Failed to connect to Ethereum Sepolia: {last_error}"
 
     def get_wallet_address(self) -> Optional[str]:
         err = self._connect()
@@ -300,8 +348,14 @@ class BlockchainClient:
     def verify(self, merkle_root: str) -> BlockchainVerifyResult:
         """
         Query smart contract to verify if a Merkle root exists on Ethereum Sepolia.
+
+        This is a read-only operation. It does NOT require a PRIVATE_KEY.
+        Falls back to public RPC endpoints if SEPOLIA_RPC_URL is not set.
         """
+        # Try full connect first; if that fails (e.g. no PRIVATE_KEY), try read-only
         err = self._connect()
+        if err:
+            err = self._connect_readonly()
         if err:
             return BlockchainVerifyResult(
                 exists=False, evidence_id=0, stored_hash="",

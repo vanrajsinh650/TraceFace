@@ -15,7 +15,7 @@ class TestProofFixture(unittest.TestCase):
     def setUpClass(cls):
         if not FIXTURE_PATH.exists():
             raise unittest.SkipTest(f"Fixture not found: {FIXTURE_PATH}")
-        cls.raw = json.loads(FIXTURE_PATH.read_text())
+        cls.raw = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
         cls.pkg_data = cls.raw["evidence_package"]
 
     # ── Structure ──────────────────────────────────────────────────────────
@@ -96,7 +96,7 @@ class TestProofFixture(unittest.TestCase):
             candidates[0]["face_similarity_score"] = 0.999999
         tampered_path = FIXTURE_PATH.parent / "_test_tampered.json"
         try:
-            tampered_path.write_text(json.dumps(tampered))
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
             pkg, _ = load_evidence_package(str(tampered_path))
             result = pkg.recompute_merkle_root()
             recomputed_root = result[0] if isinstance(result, tuple) else result
@@ -112,7 +112,7 @@ class TestProofFixture(unittest.TestCase):
 
     def test_fixture_no_secrets(self):
         """Fixture must not contain private keys, mnemonics, API keys, or local paths."""
-        content = FIXTURE_PATH.read_text()
+        content = FIXTURE_PATH.read_text(encoding="utf-8")
         forbidden = [
             "PRIVATE_KEY",
             "MNEMONIC",

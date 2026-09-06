@@ -145,51 +145,98 @@ The smart contract record locks:
 
 ---
 
+## Supported Environments & Compatibility Matrix
+
+| Operating System | Supported | Architecture | Python Versions | Notes |
+|---|---|---|---|---|
+| **Linux (Ubuntu, Debian, Arch, Fedora)** | ✅ Tested & Supported | x86_64, aarch64 | 3.10 – 3.14 | Tested with Python 3.14 on Linux x86_64 |
+| **Windows 10 / 11 (Native PowerShell)** | ✅ Tested & Supported | x86_64 | 3.10 – 3.12 | Uses UTF-8 path handling, `.venv\Scripts\Activate.ps1` |
+| **Windows WSL2** | ✅ Tested & Supported | x86_64 | 3.10 – 3.14 | Identical to Linux environment |
+| **macOS (Apple Silicon & Intel)** | ✅ Supported | arm64, x86_64 | 3.10 – 3.12 | Standard Python wheels available via pip |
+| **iOS / Mobile** | ❌ Not Supported | ARM | N/A | Desktop/server runtime only (requires native ONNX/InsightFace binaries) |
+
+> **Recommended Python**: **Python 3.12** is recommended across all platforms for the most mature binary wheel ecosystem.
+
+---
+
 ## Installation & Setup
 
-### 1. Prerequisites
-- Python 3.10+
-- Linux (x86_64 / aarch64) or macOS
+### Option A: Automated One-Command Bootstrap (Recommended)
 
-### 2. Virtual Environment Setup
+#### Linux / macOS / WSL:
 ```bash
-# Clone repository
 git clone https://github.com/vanrajsinh650/TraceFace.git
 cd TraceFace
-
-# Create and activate virtual environment
-python -m venv .venv
-source .venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
+chmod +x scripts/setup.sh
+./scripts/setup.sh
 ```
 
-### 3. Environment Variables (.env)
-
-**For Live Mode only** — Proof Mode does not require `.env` configuration.
-
-Copy `.env.example` to `.env`:
-```bash
-cp .env.example .env
-```
-
-Configure `.env`:
-```ini
-# Ethereum Sepolia Testnet (Chain ID: 11155111)
-SEPOLIA_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com
-PRIVATE_KEY=your_private_key_without_0x_prefix
-CONTRACT_ADDRESS=your_deployed_contract_address
-
-# Optional: PimEyes session cookies (alternative to pimeyes_cookies.json)
-PIMEYES_EMAIL=your_pimeyes_email
-PIMEYES_PASSWORD=your_pimeyes_password
-
-# Optional: Cosine similarity threshold override (default: 0.35)
-SIMILARITY_THRESHOLD=0.35
+#### Windows (PowerShell):
+```powershell
+git clone https://github.com/vanrajsinh650/TraceFace.git
+cd TraceFace
+.\scripts\setup.ps1
 ```
 
 ---
+
+### Option B: Manual Setup
+
+#### 1. Clone the repository
+```bash
+git clone https://github.com/vanrajsinh650/TraceFace.git
+cd TraceFace
+```
+
+#### 2. Create and activate a virtual environment
+**Linux / macOS / WSL**:
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+**Windows PowerShell**:
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+#### 3. Install Python dependencies
+```bash
+pip install -r requirements.txt
+```
+
+#### 4. Run Pre-flight Diagnostics (Doctor)
+Run the self-diagnosing `doctor` command to verify your Python environment, packages, ONNX runtime, and network connectivity:
+```bash
+python main.py doctor
+```
+Add `--verbose` for detailed tracebacks if any component reports an error:
+```bash
+python main.py doctor --verbose
+```
+
+#### 5. Environment Variables (.env) — Live Mode Only
+> **Important**: **Proof Mode (`proof-verify`) does NOT require `.env` or any wallet credentials.**
+> Only configure `.env` if you intend to run live on-chain anchoring transactions.
+
+```bash
+cp .env.example .env
+# Edit .env with your Sepolia RPC URL, private key, etc.
+```
+
+---
+
+## Troubleshooting Guide
+
+| Issue / Symptom | Root Cause | Solution |
+|---|---|---|
+| `InsightFace unavailable` | Missing model cache or failed import | Run `python main.py doctor --verbose`. The `buffalo_l` model (~280 MB) auto-downloads to `~/.insightface/models/` on first use. If network blocks it, download manually. |
+| `ONNX Runtime CPU provider missing` | Broken ONNX install | Run `pip install --force-reinstall onnxruntime`. Ensure 64-bit Python is used. |
+| `UnicodeDecodeError` on Windows | Default system ANSI code page | TraceFace explicitly uses UTF-8 encoding across all file operations. Ensure your terminal supports UTF-8 (`chcp 65001`). |
+| External search provider error (`bing`, `google`) | Upstream rate-limit or captcha | TraceFace features per-provider failure isolation (`asyncio.gather(return_exceptions=True)`). The pipeline automatically continues with available engines (e.g. Yandex). |
+| `Sepolia RPC unavailable` | Public endpoint rate limit | TraceFace rotates across multiple public fallback RPCs (`publicnode`, `rpc.sepolia.org`, `1rpc.io`). Re-run or set a custom `SEPOLIA_RPC_URL` in `.env`. |
+| `Missing environment variables: PRIVATE_KEY` | Using write mode without credentials | Run `python main.py proof-verify fixtures/demo_evidence.json` for read-only proof verification. For live pipeline without gas, pass `--no-blockchain`. |
+
 
 ## CLI Commands
 

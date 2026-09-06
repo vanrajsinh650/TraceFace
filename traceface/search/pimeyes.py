@@ -64,7 +64,7 @@ class PimEyesSearcher:
             self._cookies = {}
             return self._cookies
 
-        with open(self._cookies_path) as f:
+        with open(self._cookies_path, encoding="utf-8") as f:
             data = json.load(f)
 
         if isinstance(data, list):
