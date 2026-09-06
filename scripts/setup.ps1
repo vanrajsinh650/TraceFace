@@ -51,6 +51,6 @@ if ($doctorExit -eq 0) {
 
 Write-Host ""
 Write-Host "Next steps:"
-Write-Host "  .\.venv\Scripts\Activate.ps1                              # activate venv"
-Write-Host "  python main.py proof-verify fixtures\demo_evidence.json   # verify published proof"
-Write-Host "  python main.py --image path\to\face.jpg --no-blockchain   # live mode"
+Write-Host "  .\.venv\Scripts\Activate.ps1                                       # activate venv"
+Write-Host "  python main.py proof-verify fixtures\demo_evidence.json            # verify published proof"
+Write-Host "  python main.py --image fixtures\sample_face.jpg --no-blockchain    # live mode with included sample"

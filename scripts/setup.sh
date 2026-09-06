@@ -62,6 +62,6 @@ fi
 
 echo ""
 echo "Next steps:"
-echo "  source .venv/bin/activate                                    # activate venv"
-echo "  python main.py proof-verify fixtures/demo_evidence.json      # verify published proof"
-echo "  python main.py --image path/to/face.jpg --no-blockchain      # live mode"
+echo "  source .venv/bin/activate                                            # activate venv"
+echo "  python main.py proof-verify fixtures/demo_evidence.json              # verify published proof"
+echo "  python main.py --image fixtures/sample_face.jpg --no-blockchain      # live mode with included sample"

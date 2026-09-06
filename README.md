@@ -242,11 +242,11 @@ cp .env.example .env
 
 ### 1. Live Discovery & Evidence Anchoring (LIVE MODE)
 ```bash
-# Run full pipeline with live blockchain anchoring
-python main.py --image path/to/face.jpg
+# Run pipeline with included sample face (offline ledger, no gas needed):
+python main.py --image fixtures/sample_face.jpg --max-candidates 3 --no-blockchain
 
-# Run pipeline in offline mode (local Merkle ledger, no testnet gas needed)
-python main.py --image path/to/face.jpg --no-blockchain
+# Or run with your own photo and live blockchain anchoring:
+python main.py --image path/to/face.jpg --max-candidates 3
 ```
 
 ### 2. Public Blockchain Proof Verification (PROOF MODE)
@@ -264,33 +264,33 @@ python main.py verify results/evidence_<hash>.json
 ### 4. Live Tamper Demonstration
 Demonstrates that TraceFace detects any controlled tampering (e.g. modified similarity score, altered URL, or tampered metadata):
 ```bash
-python main.py tamper-demo results/evidence_<hash>.json
+python main.py tamper-demo fixtures/demo_evidence.json
 ```
 
 ### 5. Merkle Inclusion Proof Inspection
 Displays and mathematically verifies the audit path locking the matched candidate into the Merkle Root:
 ```bash
-python main.py proof results/evidence_<hash>.json
+python main.py proof fixtures/demo_evidence.json
 ```
 
 > **Note on Evidence Files**: Generated evidence JSON files in `results/` are intentionally gitignored to prevent committing investigation artifacts. The published proof fixture at `fixtures/demo_evidence.json` is version-controlled and can be used with `proof-verify`, `verify`, `tamper-demo`, and `proof`.
 
 ---
 
-## Quick Start for Judges
+## Quick Start for Judges & Reviewers
 
 ```bash
-# STEP A — See TraceFace work (live face discovery + web search)
-python main.py --image your_image.jpg --max-candidates 3
-
-# STEP B — Verify our published blockchain proof (deterministic)
+# STEP A — Verify published blockchain proof (deterministic, 0 config required)
 python main.py proof-verify fixtures/demo_evidence.json
 
-# STEP C — See tamper detection
+# STEP B — See tamper detection in action
 python main.py tamper-demo fixtures/demo_evidence.json
 
-# STEP D — Inspect Merkle inclusion proof
+# STEP C — Inspect Merkle inclusion proof
 python main.py proof fixtures/demo_evidence.json
+
+# STEP D — Run live face discovery on the included sample face
+python main.py --image fixtures/sample_face.jpg --max-candidates 3 --no-blockchain
 ```
 
 ---
